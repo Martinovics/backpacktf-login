@@ -1,4 +1,9 @@
 .vscode
 venv
+
+
 *test*
+*.pyc
+__pycache__
+
 config.py
