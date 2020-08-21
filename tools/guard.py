@@ -3,8 +3,6 @@ import base64
 import hmac
 import hashlib
 
-from config import Config as cfg
-
 
 
 
@@ -27,10 +25,3 @@ def gen_steam_gurad_code(shared_secret: str, timestamp: int = time.time()) -> st
         code += char_set[i]
 
     return code
-
-
-
-
-if __name__ == '__main__':
-    steam_guard_code = gen_steam_gurad_code(shared_secret=cfg.shared_secret)
-    print(steam_guard_code)
