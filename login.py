@@ -77,12 +77,22 @@ session.cookies.set(**{
 
 
 
+bptf_login = session.post('https://backpack.tf/login')
 
-'''
-print('requesting backpack.tf')
-resp = session.post('https://backpack.tf/login')
+soup = BeautifulSoup(bptf_login.text, "lxml")  # bptf_login.read() --> .decode(encoding='utf-8', errors='ignore')
+bptf_login_params = {
+    'action': soup.findAll("input", {"name": "action"})[0]['value'],
+    'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
+    'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
+    'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
+}
 
-print(session.cookies)
-print()
-print(resp.content)
-'''
+session.post(bptf_login.url, data=bptf_login_params)
+# print(session.get('https://backpack.tf/').content)
+
+
+time.sleep(5)
+print(session.cookies.get_dict()['user-id'])
+
+
+session.get(f"https://backpack.tf/logout?user-id={session.cookies.get_dict()['user-id']}")
