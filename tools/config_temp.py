@@ -1,4 +1,4 @@
 class Config:
-    username: str = ''
-    password: str = ''
-    shared_secret: str = ''  # steam shared secret
+    USERNAME: str = ''
+    PASSWORD: str = ''
+    SHARED_SECRET: str = ''  # steam shared secret
