@@ -5,9 +5,9 @@ import time
 import base64
 import requests
 from bs4 import BeautifulSoup
-from tools.guard import gen_steam_gurad_code
-from tools.config import Config as cfg
 
+import tools.steam_guard as steam_guard
+from tools.config import Config as cfg
 
 ''' Actual order:
 bptf login
@@ -23,7 +23,7 @@ session = requests.Session()
 
 
 # get rsa stuff
-ourRsa = session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.username}).json()
+ourRsa = session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
 ourRsa = {
     'modulus': int(ourRsa['publickey_mod'], 16),
@@ -37,9 +37,9 @@ ourRsa['publickey'] = rsa.PublicKey(ourRsa['modulus'], ourRsa['exponent'])
 
 # perform steam login
 login_form = {
-    'username': cfg.username,
-    'password': base64.b64encode(rsa.encrypt(cfg.password.encode('UTF-8'), ourRsa['publickey'])),
-    'twofactorcode': gen_steam_gurad_code(shared_secret=cfg.shared_secret),
+    'username': cfg.USERNAME,
+    'password': base64.b64encode(rsa.encrypt(cfg.PASSWORD.encode('UTF-8'), ourRsa['publickey'])),
+    'twofactorcode': steam_guard.generate_code(shared_secret=cfg.SHARED_SECRET),
     'emailauth': '',
     'loginfriendlyname': '',
     'captchagid': '-1',
@@ -57,10 +57,6 @@ if not stm_login['success']:
 
 for url in stm_login['transfer_urls']:
     session.post(url, stm_login['transfer_parameters'])
-
-''' Note:
-session.cookies.get_dict()['steamLoginSecure']
-'''
 
 stm_login = session.cookies.get_dict()
 
@@ -92,7 +88,8 @@ session.post(bptf_login.url, data=bptf_login_params)
 
 
 time.sleep(5)
-print(session.cookies.get_dict()['user-id'])
 
 
 session.get(f"https://backpack.tf/logout?user-id={session.cookies.get_dict()['user-id']}")
+
+print(session.get('https://backpack.tf/').content)
