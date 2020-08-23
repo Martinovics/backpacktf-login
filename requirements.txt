@@ -1,0 +1,4 @@
+# version number might not be that important
+rsa == 4.6
+lxml == 4.5.2
+beautifulsoup4 == 4.9.1
