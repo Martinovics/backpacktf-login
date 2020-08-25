@@ -7,13 +7,15 @@ from bs4 import BeautifulSoup
 import tools.steam_guard as steam_guard
 from tools.config import Config as cfg
 
-# TODO: error handling
+
 
 
 class Login:
     
     def __init__(self):
         self.session = requests.Session()
+        self.logged_in_to_steam = False
+        self.logged_in_to_backpack = False
 
 
 
@@ -25,6 +27,11 @@ class Login:
 
 
     def steam_login(self) -> None:
+        if self.logged_in_to_steam:
+            print("You are already logged in to steam.")
+            return
+
+
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
         publickey = rsa.PublicKey(int(ourRsa['publickey_mod'], 16), int(ourRsa['publickey_exp'], 16))
@@ -35,6 +42,7 @@ class Login:
         except Exception:
             err = 'There was an error while logging into steam.'
             raise Exception(err + '\n   Reason: The shared_secret that you have given is incorrect.')
+
 
         payload = {
             'username': cfg.USERNAME,
@@ -49,7 +57,6 @@ class Login:
             'rsatimestamp': ourRsa['timestamp'],
             'donotcache': str(int(time.time() * 1000))
             }
-
 
         resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload).json()
 
@@ -67,11 +74,21 @@ class Login:
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'steamcommunity.com'})
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'store.steampowered.com'})
 
+        self.logged_in_to_steam = True
+        print('Successfully logged in to steam.')
+
 
 
 
     def backpack_login(self) -> None:
+        if self.logged_in_to_backpack:
+            print("You are already logged in to backpack.tf.")
+            return
+        
+        
         resp = self.session.post('https://backpack.tf/login')
+        if resp.status_code != 200:
+            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
         soup = BeautifulSoup(resp.text, "lxml")  # .read() --> .decode(encoding='utf-8', errors='ignore')
         payload = {
@@ -81,7 +98,12 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        self.session.post(resp.url, data=payload)
+        resp = self.session.post(resp.url, data=payload)
+        if resp.status_code != 200:
+            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
+
+        self.logged_in_to_backpack = True
+        print('Successfully logged in to backpack.tf.')
 
 
 
@@ -94,9 +116,33 @@ class Login:
 
 
 
-    def logout(self) -> None:
-        # stm logout?
+    def steam_logout(self) -> None:
+        if not self.logged_in_to_steam:
+            print("You aren't logged in to steam.")
+            return
+        
+        self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': self.session.cookies.get_dict()['sessionid']})
+        self.logged_in_to_steam = False
+        print('Successfully logged out from steam.')
+
+
+
+
+    def backpack_logout(self) -> None:
+        if not self.logged_in_to_backpack:
+            print("You aren't logged in to backpack.tf.")
+            return
+
         self.session.get(f"https://backpack.tf/logout?user-id={self.session.cookies.get_dict()['user-id']}")
+        self.logged_in_to_backpack = False
+        print('Successfully logged out from backpack.tf.')
+
+
+
+
+    def logout(self) -> None:
+        self.steam_logout()
+        self.backpack_logout()
         print('Successfully logged out.')
 
 
