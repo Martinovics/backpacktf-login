@@ -1,9 +1,8 @@
-import rsa
 import time
-import base64
 import requests
 from bs4 import BeautifulSoup
 
+import tools.utils as utils
 import tools.steam_guard as steam_guard
 from tools.config import Config as cfg
 
@@ -34,8 +33,11 @@ class Login:
 
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
-        publickey = rsa.PublicKey(int(ourRsa['publickey_mod'], 16), int(ourRsa['publickey_exp'], 16))
-        encoded_password = base64.b64encode(rsa.encrypt(cfg.PASSWORD.encode('UTF-8'), publickey))
+        encoded_password = utils.encode_password(
+            password=cfg.PASSWORD, 
+            rsa_modulus=int(ourRsa['publickey_mod'], 16),
+            rsa_exponent=int(ourRsa['publickey_exp'], 16)
+            )
 
         try:
             two_factor_code = steam_guard.generate_code(shared_secret=cfg.SHARED_SECRET)
