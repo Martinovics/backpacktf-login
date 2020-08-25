@@ -1,4 +1,5 @@
-# version number might not be that important
+# The versions, that I've used during the development. (might not be that important)
 rsa == 4.6
 lxml == 4.5.2
+aiohttp == 3.6.2
 beautifulsoup4 == 4.9.1
