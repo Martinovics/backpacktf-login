@@ -145,6 +145,8 @@ class Login:
     def logout(self) -> None:
         self.steam_logout()
         self.backpack_logout()
+        
+        self.session.close()
         print('Successfully logged out.')
 
 
@@ -153,7 +155,7 @@ class Login:
 
 
 if __name__ == '__main__':
-    loginSession = Login() 
+    loginSession = Login()
 
     loginSession.login()
     time.sleep(5)
