@@ -32,6 +32,7 @@ class Login:
 
 
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
+        # print(1, self.session.cookies.get_dict())  # just debug
 
         encoded_password = utils.encode_password(
             password=cfg.PASSWORD, 
@@ -61,15 +62,16 @@ class Login:
             }
 
         resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload).json()
+        # print(2, self.session.cookies.get_dict())  # just debug
 
         if not resp['success']:
             err = 'There was an error while logging into steam.'
-            if resp['message']:
+            if resp.get('message'):
                 err += f"\n   Reason: {resp['message']}"
             raise Exception(err)
 
         for url in resp['transfer_urls']:
-            self.session.post(url, resp['transfer_parameters'])
+            self.session.post(url, data=resp['transfer_parameters'])
 
 
         stm_cookies = self.session.cookies.get_dict()
