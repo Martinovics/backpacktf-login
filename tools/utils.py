@@ -23,3 +23,9 @@ def encode_password(password, publickey=None, rsa_modulus=None, rsa_exponent=Non
     if as_string:
         return pwd.decode("utf-8")
     return pwd
+
+
+
+
+def jar_to_dict(cookie_jar):
+    return {cookie.key: cookie.value for cookie in cookie_jar}
