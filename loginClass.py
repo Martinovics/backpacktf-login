@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 
 import tools.utils as utils
 import tools.steam_guard as steam_guard
+from tools.config import Const as const
 from tools.config import Config as cfg
 
 
@@ -13,6 +14,7 @@ class Login:
     
     def __init__(self):
         self.session = requests.Session()
+        self.session.headers.update({'User-Agent': const.USER_AGENT})
         self.logged_in_to_steam = False
         self.logged_in_to_backpack = False
 
@@ -32,7 +34,6 @@ class Login:
 
 
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
-        # print(1, self.session.cookies.get_dict())  # just debug
 
         encoded_password = utils.encode_password(
             password=cfg.PASSWORD, 
@@ -61,8 +62,7 @@ class Login:
             'donotcache': str(int(time.time() * 1000))
             }
 
-        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload).json()
-        # print(2, self.session.cookies.get_dict())  # just debug
+        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload)
 
         if not resp['success']:
             err = 'There was an error while logging into steam.'
