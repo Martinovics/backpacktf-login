@@ -1,4 +1,5 @@
 import time
+import json
 import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
@@ -28,6 +29,7 @@ class Login:
         resp = await self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME})
         ourRsa = await resp.json()
         
+        print('cookie after 1. req:')
         for cookie in self.session.cookie_jar:
             print(f"{cookie.key}: {cookie.value}")
         
@@ -63,13 +65,9 @@ class Login:
         resp = await self.session.post("https://store.steampowered.com/login/dologin", data=payload)
         resp = await resp.json()
         
+        print('cookie after 2. req:')
         for cookie in self.session.cookie_jar:
             print(f"{cookie.key}: {cookie.value}")
- 
-
-        for cookie in self.session.cookie_jar:
-            print(cookie.key)
-            print(cookie["domain"])
 
         print(resp)
 
@@ -101,6 +99,80 @@ class Login:
 
 
 
+
+class MySession:
+    def __init__(self):
+        self._session = None
+
+    async def _get_session(self, *args, **kwargs):
+        self._session = aiohttp.ClientSession(*args, **kwargs)
+
+    async def __call__(self, *args, **kwargs):
+        # set ClientSession object for subsequent queries
+        await self._get_session(*args, **kwargs)
+
+        # access self._session here to do your stuff
+
+
+
+
+        resp = await self._session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME})
+        ourRsa = await resp.json()
+        
+        print('cookie after 1. req:')
+        for cookie in self._session.cookie_jar:
+            print(f"{cookie.key}: {cookie.value}")
+        
+
+        encoded_password = utils.encode_password(
+            password=cfg.PASSWORD, 
+            rsa_modulus=int(ourRsa['publickey_mod'], 16),
+            rsa_exponent=int(ourRsa['publickey_exp'], 16)
+            )
+
+        try:
+            two_factor_code = steam_guard.generate_code(shared_secret=cfg.SHARED_SECRET)
+        except Exception:
+            err = 'There was an error while logging into steam.'
+            raise Exception(err + '\n   Reason: The shared_secret that you have given is incorrect.')
+
+
+        payload = {
+            'username': cfg.USERNAME,
+            'password': encoded_password,
+            'twofactorcode': two_factor_code,
+            'emailauth': '',
+            'loginfriendlyname': '',
+            'captchagid': '-1',
+            'captcha_text': '',
+            'emailsteamid': '',
+            'remember_login': 'false',
+            'rsatimestamp': ourRsa['timestamp'],
+            'donotcache': str(int(time.time() * 1000))
+            }
+
+
+        resp = await self._session.post("https://store.steampowered.com/login/dologin", data=payload)
+        resp = await resp.json()
+        
+        print('cookie after 2. req:')
+        for cookie in self._session.cookie_jar:
+            print(f"{cookie.key}: {cookie.value}")
+
+        print(resp)
+
+
+
+
+        # close session when all work is done
+        await self._session.close()
+
+
+
+
+
+
+
 async def main():
     loginSession = Login()
     await loginSession.steam_login()
@@ -110,5 +182,10 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.get_event_loop().run_until_complete(main())
+    # asyncio.get_event_loop().run_until_complete(main())
 
+    session = MySession()
+    loop = asyncio.get_event_loop()
+
+    # pass any parameters ClientSession expects to session object when calling in loop.run_until_complete
+    instance = loop.run_until_complete(session(raise_for_status=True))
