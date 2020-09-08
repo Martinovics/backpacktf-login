@@ -62,7 +62,7 @@ class Login:
             'donotcache': str(int(time.time() * 1000))
             }
 
-        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload)
+        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload).json()
 
         if not resp['success']:
             err = 'There was an error while logging into steam.'
