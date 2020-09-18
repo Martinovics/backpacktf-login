@@ -160,5 +160,9 @@ if __name__ == '__main__':
     loginSession = Login()
 
     loginSession.login()
+
+    resp = loginSession.get_session().get("https://backpack.tf/")
+    print(resp.text)
+
     time.sleep(5)
     loginSession.logout()
