@@ -23,6 +23,12 @@ class Login:
 
 
 
+    def get_session(self):
+        return self.session
+
+
+
+
     async def steam_login(self) -> None:
         if self.logged_in_to_steam:
             print("You are already logged in to steam.")
@@ -185,6 +191,13 @@ async def main():
         loginSession = Login(session=session)
 
         await loginSession.login()
+        
+        await asyncio.sleep(0.5)
+        resp = await loginSession.get_session().get("https://backpack.tf/")
+        resp = await resp.read()
+        if 'username' in resp.decode(encoding='utf-8', errors='ignore'):
+            print('successsss')
+        
         await asyncio.sleep(5)
         await loginSession.logout()
 
