@@ -1,3 +1,4 @@
+import re
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -106,8 +107,18 @@ class Login:
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
-        self.logged_in_to_backpack = True
-        print('Successfully logged in to backpack.tf.')
+
+        resp = self.session.get("https://backpack.tf/")
+        soup = BeautifulSoup(resp.text, 'lxml').find_all("div", class_="username")
+
+        if soup:
+            soup = str(soup[0]).replace('\n', '').replace('  ', '')
+            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', soup)[0]            
+
+            self.logged_in_to_backpack = True
+            print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
+        else:
+            raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
 
 
 
@@ -160,9 +171,5 @@ if __name__ == '__main__':
     loginSession = Login()
 
     loginSession.login()
-
-    resp = loginSession.get_session().get("https://backpack.tf/")
-    print(resp.text)
-
     time.sleep(5)
     loginSession.logout()
