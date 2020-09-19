@@ -1,3 +1,4 @@
+import re
 import time
 import json
 import aiohttp
@@ -116,12 +117,27 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        resp = await self.session.post(req_url, data=payload)
+        print(utils.jar_to_dict(self.session.cookie_jar))
+
+        resp = await self.session.post(req_url, params=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        self.logged_in_to_backpack = True
-        print('Successfully logged in to backpack.tf.')
+
+        await asyncio.sleep(1)
+
+        resp = await self.session.get("https://backpack.tf/")
+        resp = await resp.read()
+        soup = BeautifulSoup(resp.decode(encoding='utf-8', errors='ignore'), 'lxml').find_all("div", class_="username")
+
+        if soup:
+            soup = str(soup[0]).replace('\n', '').replace('  ', '')
+            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', soup)[0]            
+
+            self.logged_in_to_backpack = True
+            print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
+        else:
+            raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
 
 
 
