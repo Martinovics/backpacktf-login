@@ -90,8 +90,19 @@ class Login:
         self.session.cookie_jar.update_cookies(cookies)
 
 
-        self.logged_in_to_steam = True
-        print('Successfully logged in to steam.')
+        # check whether we are really logged in
+        resp = await self.session.get('https://steamcommunity.com/')
+        resp = await resp.read()
+        resp = re.sub(r'[\r\n\t]', '', resp.decode(encoding='utf-8', errors='ignore')).replace('  ', '')
+
+        username = re.findall(r'data-tooltip-content=".submenu_username">(.*?)</a>', resp)
+        steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
+
+        if username and steamID64:
+            self.logged_in_to_steam = True
+            print(f'Successfully logged in to steam as {username[-1]} ({steamID64[-1]}).')
+        else:
+            raise Exception("There was an error while logging into steam.\n   Reason: unknown")
 
 
 
@@ -117,22 +128,20 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        print(utils.jar_to_dict(self.session.cookie_jar))
-
-        resp = await self.session.post(req_url, params=payload)
+        resp = await self.session.post(req_url, data=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
 
-        await asyncio.sleep(1)
-
+        # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
-        soup = BeautifulSoup(resp.decode(encoding='utf-8', errors='ignore'), 'lxml').find_all("div", class_="username")
+        resp = re.sub(r'[\r\n\t]', '', resp.decode(encoding='utf-8', errors='ignore')).replace('  ', '')
 
-        if soup:
-            soup = str(soup[0]).replace('\n', '').replace('  ', '')
-            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', soup)[0]            
+        login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
+
+        if login_data:
+            steamID64, username = login_data[0]
 
             self.logged_in_to_backpack = True
             print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
