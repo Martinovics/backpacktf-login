@@ -79,8 +79,19 @@ class Login:
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'steamcommunity.com'})
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'store.steampowered.com'})
 
-        self.logged_in_to_steam = True
-        print('Successfully logged in to steam.')
+
+        # check whether we are really logged in
+        resp = self.session.get('https://steamcommunity.com/')
+        resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
+        
+        username = re.findall(r'data-tooltip-content=".submenu_username">(.*?)</a>', resp)
+        steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
+
+        if username and steamID64:
+            self.logged_in_to_steam = True
+            print(f'Successfully logged in to steam as {username[-1]} ({steamID64[-1]}).')
+        else:
+            raise Exception("There was an error while logging into steam.\n   Reason: unknown")
 
 
 
@@ -108,12 +119,13 @@ class Login:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
 
+        # check whether we are really logged in
         resp = self.session.get("https://backpack.tf/")
-        soup = BeautifulSoup(resp.text, 'lxml').find_all("div", class_="username")
+        resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
+        login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
 
-        if soup:
-            soup = str(soup[0]).replace('\n', '').replace('  ', '')
-            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', soup)[0]            
+        if login_data:
+            steamID64, username = login_data[0]
 
             self.logged_in_to_backpack = True
             print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
