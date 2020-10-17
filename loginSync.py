@@ -140,6 +140,15 @@ class Login:
         self.backpack_login()
         print('Successfully logged in.')
 
+        '''
+        self.session.post('https://backpack.tf/classifieds/alerts', data={
+            'item_name': 'Mann Co. Supply Crate Key',
+            'intent': 'sell',
+            'blanket': '1',
+            'user-id': self.session.cookies.get_dict()['user-id']})
+        '''
+        
+
 
 
 
