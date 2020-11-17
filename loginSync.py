@@ -16,8 +16,6 @@ class Login:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': const.USER_AGENT})
-        self.logged_in_to_steam = False
-        self.logged_in_to_backpack = False
 
 
 
@@ -29,11 +27,6 @@ class Login:
 
 
     def steam_login(self) -> None:
-        if self.logged_in_to_steam:
-            print("You are already logged in to steam.")
-            return
-
-
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
         encoded_password = utils.encode_password(
@@ -75,9 +68,11 @@ class Login:
             self.session.post(url, data=resp['transfer_parameters'])
 
 
+        '''
         stm_cookies = self.session.cookies.get_dict()
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'steamcommunity.com'})
         self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'store.steampowered.com'})
+        '''
 
 
         # check whether we are really logged in
@@ -88,7 +83,6 @@ class Login:
         steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
 
         if username and steamID64:
-            self.logged_in_to_steam = True
             print(f'Successfully logged in to steam as {username[-1]} ({steamID64[-1]}).')
         else:
             raise Exception("There was an error while logging into steam.\n   Reason: unknown")
@@ -97,11 +91,7 @@ class Login:
 
 
     def backpack_login(self) -> None:
-        if self.logged_in_to_backpack:
-            print("You are already logged in to backpack.tf.")
-            return
-        
-        
+
         resp = self.session.post('https://backpack.tf/login')
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
@@ -126,8 +116,6 @@ class Login:
 
         if login_data:
             steamID64, username = login_data[0]
-
-            self.logged_in_to_backpack = True
             print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
         else:
             raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
@@ -140,37 +128,19 @@ class Login:
         self.backpack_login()
         print('Successfully logged in.')
 
-        '''
-        self.session.post('https://backpack.tf/classifieds/alerts', data={
-            'item_name': 'Mann Co. Supply Crate Key',
-            'intent': 'sell',
-            'blanket': '1',
-            'user-id': self.session.cookies.get_dict()['user-id']})
-        '''
-        
 
 
 
 
     def steam_logout(self) -> None:
-        if not self.logged_in_to_steam:
-            print("You aren't logged in to steam.")
-            return
-        
         self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': self.session.cookies.get_dict()['sessionid']})
-        self.logged_in_to_steam = False
         print('Successfully logged out from steam.')
 
 
 
 
     def backpack_logout(self) -> None:
-        if not self.logged_in_to_backpack:
-            print("You aren't logged in to backpack.tf.")
-            return
-
         self.session.get(f"https://backpack.tf/logout?user-id={self.session.cookies.get_dict()['user-id']}")
-        self.logged_in_to_backpack = False
         print('Successfully logged out from backpack.tf.')
 
 
