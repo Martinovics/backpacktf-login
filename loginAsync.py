@@ -194,13 +194,6 @@ async def main():
         loginSession = Login(session=session)
 
         await loginSession.login()
-        
-        await asyncio.sleep(0.5)
-        resp = await loginSession.get_session().get("https://backpack.tf/")
-        resp = await resp.read()
-        if 'username' in resp.decode(encoding='utf-8', errors='ignore'):
-            print('successsss')
-        
         await asyncio.sleep(5)
         await loginSession.logout()
 
