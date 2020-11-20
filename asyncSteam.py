@@ -217,7 +217,7 @@ class SteamLogin:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        resp = await self.session.post(req_url, data=payload)
+        resp = await self.session.post(req_url, json=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
