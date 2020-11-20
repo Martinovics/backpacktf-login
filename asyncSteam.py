@@ -211,10 +211,10 @@ class SteamLogin:
 
         soup = BeautifulSoup(resp.decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {
-            'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
-            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
-            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
+            'action': str(soup.findAll("input", {"name": "action"})[0]['value']),
+            'openidmode': str(soup.findAll("input", {"name": "openid.mode"})[0]['value']),
+            'openidparams': str(soup.findAll("input", {"name": "openidparams"})[0]['value']),
+            'nonce': str(soup.findAll("input", {"name": "nonce"})[0]['value'])
             }
 
         resp = await self.session.post(req_url, json=payload)
@@ -225,6 +225,7 @@ class SteamLogin:
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
+        print(resp)
         resp = re.sub(r'[\r\n\t]', '', resp.decode(encoding='utf-8', errors='ignore')).replace('  ', '')
 
         login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
