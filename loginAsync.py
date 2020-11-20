@@ -112,13 +112,13 @@ class Login:
 
         soup = BeautifulSoup(resp.decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {
-            'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
-            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
-            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
+            'action': str(soup.findAll("input", {"name": "action"})[0]['value']),
+            'openidmode': str(soup.findAll("input", {"name": "openid.mode"})[0]['value']),
+            'openidparams': str(soup.findAll("input", {"name": "openidparams"})[0]['value']),
+            'nonce': str(soup.findAll("input", {"name": "nonce"})[0]['value'])
             }
 
-        resp = await self.session.post(req_url, data=payload)
+        resp = await self.session.post(req_url, json=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
