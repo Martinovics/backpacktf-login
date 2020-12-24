@@ -15,6 +15,9 @@ from bs4 import BeautifulSoup
 import asyncio
 from tools.config import Config as cfg
 from tools.config import Const as const
+import tools.utils as utils
+import json
+import urllib.parse
 
 
 
@@ -44,7 +47,7 @@ class AsyncClient:
 
 
     async def do_login(self):
-        resp = await self.session.get("https://backpack.tf/")
+        # resp = await self.session.get("https://backpack.tf/")
 
         login_request = await self._send_login()
         if 'captcha_needed' in login_request.keys():
@@ -62,41 +65,61 @@ class AsyncClient:
             self.logged_in = False
             raise ConnectionError('Login Failed')
         self.logged_in = True
+        print('steam ok')
         
         
 
         # ==========================================================================================================================================
+        # print(utils.jar_to_dict(self.session.cookie_jar))
+        print(list(self.session.cookie_jar))
 
-        resp = await self.session.post('https://backpack.tf/login')
+        resp = await self.session.post('https://backpack.tf/login/')
         print(resp.status)
+        print(resp.headers)
      
         soup = await resp.read()
         soup = BeautifulSoup(soup.decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {
-            'action': str(soup.findAll("input", {"name": "action"})[0]['value']),
-            'openidmode': str(soup.findAll("input", {"name": "openid.mode"})[0]['value']),
-            'openidparams': str(soup.findAll("input", {"name": "openidparams"})[0]['value']),
-            'nonce': str(soup.findAll("input", {"name": "nonce"})[0]['value'])
+            'action': soup.findAll("input", {"name": "action"})[0]['value'],
+            'openid.mode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
+            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
+            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
 
-        
-        resp = await self.session.post(resp.url, data=payload)
+        form = aiohttp.FormData()
+        form.add_field('form-data', json.dumps(payload), content_type='form-data')
+
+        '''
+        resp = await self.session.post(resp.url, data=form)
         print(resp.status)
+        await asyncio.sleep(1)
+        resp = await self.session.post(resp.url, json=json.dumps(payload))
+        print(resp.status)
+        await asyncio.sleep(1)
+        '''
+
+        # resp = await self.session.post(resp.url), data=payload)
+        print(resp.status)
+        await asyncio.sleep(1)
+        print(resp.headers)
 
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
+        print(len(resp))
         
-        if cfg.USERNAME in resp.decode(encoding='utf-8', errors='ignore'):
-            print("logged in to bptf")
+        if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
+            print("bptf ok")
         else:
             print("fail")
 
         # ===========================================================================================================================================
         
+        await asyncio.sleep(3)
+        await self.session.close()
 
-        return self.session
+        #return self.session
 
 
 
@@ -205,10 +228,6 @@ class AsyncClient:
 async def main():
     steam_login = AsyncClient(cfg.USERNAME, cfg.PASSWORD, shared_secret=cfg.SHARED_SECRET)
     await steam_login.do_login()
-
-    print("logged in to steam")
-
-    await asyncio.sleep(5)
 
 
 
