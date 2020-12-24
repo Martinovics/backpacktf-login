@@ -14,6 +14,9 @@ import re
 from bs4 import BeautifulSoup
 import asyncio
 from tools.config import Config as cfg
+from tools.config import Const as const
+
+
 
 
 class AsyncClient:
@@ -21,10 +24,13 @@ class AsyncClient:
         self.username = username
         self.password = password
         self.shared_secret = shared_secret
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(headers={'User-Agent': const.USER_AGENT})
         self._repeats = 0
         self._one_time_code = one_time_code
         self.logged_in = False
+
+
+
 
     async def test_login(self):
         async with self.session.get(SteamUrls.Community.value) as resp:
@@ -33,8 +39,13 @@ class AsyncClient:
                 return True
         return False
 
+
+
+
+
     async def do_login(self):
-        
+        resp = await self.session.get("https://backpack.tf/")
+
         login_request = await self._send_login()
         if 'captcha_needed' in login_request.keys():
             raise ValueError("Captcha required for login")
@@ -87,11 +98,17 @@ class AsyncClient:
 
         return self.session
 
+
+
+
     def _copy_cookies(self, prev_domain, new_domain):
         prev_cookies = self.session.cookie_jar.filter_cookies(prev_domain)
         for cookie in prev_cookies:
             cookie['domain'] = new_domain
         return prev_cookies
+
+
+
 
     async def _get_rsa(self):
         async with self.session.post(SteamUrls.Store.value + '/login/getrsakey/',
@@ -110,6 +127,9 @@ class AsyncClient:
             else:
                 return {'rsa_key': rsa.PublicKey(mod, exp), 'rsa_timestamp': timestamp}
 
+
+
+
     async def _send_login(self):
         try:
             rsa_keys = await self._get_rsa()
@@ -120,8 +140,14 @@ class AsyncClient:
         async with self.session.post(SteamUrls.Store.value + '/login/dologin', data=request_payload) as resp:
             return await resp.json()
 
+
+
+
     def _encrypt_password(self, rsa_params: dict):
         return base64.b64encode(rsa.encrypt(self.password.encode('utf-8'), rsa_params['rsa_key']))
+
+
+
 
     def _prep_login(self, encrypt_pass: bytes, timestamp: str):
         return {
@@ -138,6 +164,9 @@ class AsyncClient:
             'donotcache': str(int(time.time() * 1000))
         }
 
+
+
+
     async def _do_redirect(self, resp_json):
         prams = resp_json.get('transfer_parameters')
         if not prams:
@@ -145,6 +174,9 @@ class AsyncClient:
         for url in resp_json['transfer_urls']:
             async with self.session.post(url, data=prams):
                 pass
+
+
+
 
     @property
     def one_time_code(self):
@@ -164,6 +196,7 @@ class AsyncClient:
             code += chars[i]
 
         return code
+
 
 
 
