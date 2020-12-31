@@ -103,6 +103,8 @@ class Login:
             'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
+        
+        print(payload)
 
         resp = self.session.post(resp.url, data=payload)
         if resp.status_code != 200:

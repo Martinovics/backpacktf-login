@@ -86,6 +86,9 @@ class AsyncClient:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
+        print()
+        print(payload)
+        print()
 
         form = aiohttp.FormData()
         form.add_field('form-data', json.dumps(payload), content_type='form-data')
