@@ -3,6 +3,7 @@ import time
 import json
 import aiohttp
 import asyncio
+from yarl import URL
 from bs4 import BeautifulSoup
 from http.cookies import SimpleCookie
 
@@ -10,10 +11,6 @@ import tools.utils as utils
 import tools.steam_guard as steam_guard
 from tools.config import Const as const
 from tools.config import Config as cfg
-
-
-from yarl import URL
-from tools.steam_enums import SteamUrls
 
 
 
@@ -99,14 +96,13 @@ class Login:
 
     async def backpack_login(self) -> None:
 
-        resp = await self.session.post('https://backpack.tf/login')
+        resp = await self.session.post('https://backpack.tf/login/')
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-        
-        req_url = resp.url
-        resp = await resp.read()
 
-        soup = BeautifulSoup(resp.decode(encoding='utf-8', errors='ignore'), "lxml")
+
+        soup = await resp.read()
+        soup = BeautifulSoup(soup.decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {
             'action': soup.findAll("input", {"name": "action"})[0]['value'],
             'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
@@ -114,7 +110,7 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        resp = await self.session.post(req_url, data=payload)
+        resp = await self.session.post(resp.url, data=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
