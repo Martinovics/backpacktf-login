@@ -92,7 +92,7 @@ class Login:
 
     def backpack_login(self) -> None:
 
-        resp = self.session.post('https://backpack.tf/login')
+        resp = self.session.post('https://backpack.tf/login/')
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
@@ -103,7 +103,6 @@ class Login:
             'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
-        print(payload)
 
         resp = self.session.post(resp.url, data=payload)
         if resp.status_code != 200:
