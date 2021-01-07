@@ -104,6 +104,7 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
+        print(resp.url)
         resp = self.session.post(resp.url, data=payload)
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")

@@ -3,6 +3,7 @@ import time
 import json
 import aiohttp
 import asyncio
+import urllib.parse
 from yarl import URL
 from bs4 import BeautifulSoup
 from http.cookies import SimpleCookie
@@ -110,7 +111,11 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        resp = await self.session.post(resp.url, data=payload)
+        print(resp.url)
+        print(urllib.parse.quote(str(resp.url)))
+        # resp = await self.session.post(resp.url, data=payload)
+        url = "https://steamcommunity.com/openid/login?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=checkid_setup&openid.return_to=http%3A%2F%2Fbackpack.tf%2Flogin&openid.realm=http%3A%2F%2Fbackpack.tf&openid.ns.sreg=http%3A%2F%2Fopenid.net%2Fextensions%2Fsreg%2F1.1&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select"
+        resp = await self.session.post(url, data=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
