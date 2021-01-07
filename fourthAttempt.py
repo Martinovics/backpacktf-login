@@ -73,14 +73,17 @@ class AsyncClient:
         resp = await self.session.post('https://backpack.tf/login/')
      
         soup = await resp.read()
-        soup = BeautifulSoup(soup.decode(encoding='utf-8', errors='ignore'), "lxml")
+        soup = soup.decode(encoding='utf-8', errors='ignore')
+        # print(soup)
+        soup = BeautifulSoup(soup, "lxml")
         payload = {
             'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openid.mode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
+            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
             'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
+        print(payload)
         resp = await self.session.post(resp.url, data=payload)
         
 
