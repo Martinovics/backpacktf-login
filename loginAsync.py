@@ -12,6 +12,10 @@ from tools.config import Const as const
 from tools.config import Config as cfg
 
 
+from yarl import URL
+from tools.steam_enums import SteamUrls
+
+
 
 
 class Login:
@@ -73,16 +77,8 @@ class Login:
         for url in resp['transfer_urls']:
             await self.session.post(url, data=resp['transfer_parameters'])
 
-
-        '''
-        stm_cookies = utils.jar_to_dict(self.session.cookie_jar)
-        cookies = SimpleCookie(
-            f"sessionid={stm_cookies['sessionid']}; Domain=steamcommunity.com; "
-            f"sessionid={stm_cookies['sessionid']}; Domain=store.steampowered.com; "
-            )
-        
-        self.session.cookie_jar.update_cookies(cookies)
-        '''
+        cookies = self.set_cookie(const.COMMUNITY_URL[8:], const.STORE_URL[8:])
+        self.session.cookie_jar.update_cookies(cookies, URL(const.COMMUNITY_URL))
 
 
         # check whether we are really logged in
@@ -126,15 +122,11 @@ class Login:
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
-        resp = re.sub(r'[\r\n\t]', '', resp.decode(encoding='utf-8', errors='ignore')).replace('  ', '')
-
-        login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
-
-        if login_data:
-            steamID64, username = login_data[0]
-            print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
+        
+        if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
+            print("Successfully logged in to Backpack.tf.")
         else:
-            raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
+            print("Couldn't log in to Backpack.tf.")
 
 
 
@@ -181,6 +173,15 @@ class Login:
         
         await self.session.close()
         print('Successfully logged out.')
+
+
+
+
+    def set_cookie(self, prev_domain, new_domain):
+        cookies = self.session.cookie_jar.filter_cookies(prev_domain)
+        for cookie in cookies:
+            cookie['domain'] = new_domain
+        return cookies
 
 
 
