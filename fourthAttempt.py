@@ -70,12 +70,7 @@ class AsyncClient:
         
 
         # ==========================================================================================================================================
-        # print(utils.jar_to_dict(self.session.cookie_jar))
-        print(list(self.session.cookie_jar))
-
         resp = await self.session.post('https://backpack.tf/login/')
-        print(resp.status)
-        print(resp.headers)
      
         soup = await resp.read()
         soup = BeautifulSoup(soup.decode(encoding='utf-8', errors='ignore'), "lxml")
@@ -86,31 +81,12 @@ class AsyncClient:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        print()
-        print(payload)
-        print()
-
-        form = aiohttp.FormData()
-        form.add_field('form-data', json.dumps(payload), content_type='form-data')
-
-        '''
-        resp = await self.session.post(resp.url, data=form)
-        print(resp.status)
-        await asyncio.sleep(1)
-        resp = await self.session.post(resp.url, json=json.dumps(payload))
-        print(resp.status)
-        await asyncio.sleep(1)
-        '''
-
-        # resp = await self.session.post(resp.url), data=payload)
-        print(resp.status)
-        await asyncio.sleep(1)
-        print(resp.headers)
+        resp = await self.session.post(resp.url, data=payload)
+        
 
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
-        print(len(resp))
         
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
             print("bptf ok")
