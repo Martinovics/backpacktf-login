@@ -101,21 +101,9 @@ class Login:
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-
-        soup = await resp.read()
-        soup = BeautifulSoup(soup.decode(encoding='utf-8', errors='ignore'), "lxml")
-        payload = {
-            'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
-            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
-            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
-            }
-
-        print(resp.url)
-        print(urllib.parse.quote(str(resp.url)))
-        # resp = await self.session.post(resp.url, data=payload)
-        url = "https://steamcommunity.com/openid/login?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=checkid_setup&openid.return_to=http%3A%2F%2Fbackpack.tf%2Flogin&openid.realm=http%3A%2F%2Fbackpack.tf&openid.ns.sreg=http%3A%2F%2Fopenid.net%2Fextensions%2Fsreg%2F1.1&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select"
-        resp = await self.session.post(url, data=payload)
+        soup = BeautifulSoup(await resp.text(), "lxml")
+        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
+        resp = await self.session.post('https://steamcommunity.com/openid/login', json=payload)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
@@ -123,11 +111,12 @@ class Login:
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
+        # print(resp)
         
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
-            print("Successfully logged in to Backpack.tf.")
+            print("bptf ok")
         else:
-            print("Couldn't log in to Backpack.tf.")
+            print("fail")
 
 
 
