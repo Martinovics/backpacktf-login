@@ -10,14 +10,11 @@ from hashlib import sha1
 import time
 from yarl import URL
 
-import re
 from bs4 import BeautifulSoup
 import asyncio
 from tools.config import Config as cfg
 from tools.config import Const as const
-import tools.utils as utils
-import json
-import urllib.parse
+
 
 
 
@@ -66,8 +63,8 @@ class AsyncClient:
             raise ConnectionError('Login Failed')
         self.logged_in = True
         print('steam ok')
-        
-        
+
+
 
         # ==========================================================================================================================================
         resp = await self.session.post('https://backpack.tf/login/')
@@ -85,18 +82,18 @@ class AsyncClient:
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
         # print(resp)
-        
+
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
             print("bptf ok")
         else:
             print("fail")
 
         # ===========================================================================================================================================
-        
+
         await asyncio.sleep(3)
         await self.session.close()
 
-        #return self.session
+        # return self.session
 
 
 

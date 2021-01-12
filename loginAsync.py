@@ -1,12 +1,9 @@
 import re
 import time
-import json
 import aiohttp
 import asyncio
-import urllib.parse
 from yarl import URL
 from bs4 import BeautifulSoup
-from http.cookies import SimpleCookie
 
 import tools.utils as utils
 import tools.steam_guard as steam_guard
@@ -17,7 +14,7 @@ from tools.config import Config as cfg
 
 
 class Login:
-    
+
     def __init__(self, session):
         self.session = session
 
@@ -37,7 +34,7 @@ class Login:
 
         encoded_password = utils.encode_password(
             as_string=True,
-            password=cfg.PASSWORD, 
+            password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
             )
@@ -92,7 +89,7 @@ class Login:
         else:
             raise Exception("There was an error while logging into steam.\n   Reason: unknown")
 
-        
+
 
 
     async def backpack_login(self) -> None:
@@ -112,7 +109,7 @@ class Login:
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
         # print(resp)
-        
+
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
             print("bptf ok")
         else:
@@ -132,8 +129,8 @@ class Login:
     async def steam_logout(self) -> None:
 
         cookies = utils.jar_to_dict(self.session.cookie_jar)
-        resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid':cookies['sessionid']})
-        
+        resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': cookies['sessionid']})
+
         if resp.status != 200:
             resp = await resp.read()
             raise Exception(f"There was an error while logging out from steam.\n   Reason: {resp}")
@@ -160,7 +157,7 @@ class Login:
     async def logout(self) -> None:
         await self.steam_logout()
         await self.backpack_logout()
-        
+
         await self.session.close()
         print('Successfully logged out.')
 
