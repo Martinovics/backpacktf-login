@@ -71,25 +71,20 @@ class AsyncClient:
 
         # ==========================================================================================================================================
         resp = await self.session.post('https://backpack.tf/login/')
-     
-        soup = await resp.read()
-        soup = soup.decode(encoding='utf-8', errors='ignore')
-        # print(soup)
-        soup = BeautifulSoup(soup, "lxml")
-        payload = {
-            'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
-            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
-            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
-            }
+        if resp.status != 200:
+            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        print(payload)
-        resp = await self.session.post(resp.url, data=payload)
-        
+        soup = BeautifulSoup(await resp.text(), "lxml")
+        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload)
+        if resp.status != 200:
+            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
+
 
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
+        # print(resp)
         
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
             print("bptf ok")
