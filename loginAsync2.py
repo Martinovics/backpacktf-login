@@ -73,7 +73,7 @@ class AsyncClient:
 
         soup = BeautifulSoup(await resp.text(), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
-        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload)
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
@@ -81,7 +81,7 @@ class AsyncClient:
         # check whether we are really logged in
         resp = await self.session.get("https://backpack.tf/")
         resp = await resp.read()
-        # print(resp)
+        print(resp)
 
         if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
             print("bptf ok")

@@ -17,6 +17,8 @@ class Login:
 
     def __init__(self, session):
         self.session = session
+        self.stm_logged_in = False
+        self.bptf_logged_in = False
 
 
 
@@ -95,25 +97,27 @@ class Login:
     async def backpack_login(self) -> None:
 
         resp = await self.session.post('https://backpack.tf/login/')
+        await asyncio.sleep(0.1)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        soup = BeautifulSoup(await resp.text(), "lxml")
+
+        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
-        resp = await self.session.post('https://steamcommunity.com/openid/login', json=payload)
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
+        print(utils.jar_to_dict(self.session.cookie_jar))
 
-        # check whether we are really logged in
-        resp = await self.session.get("https://backpack.tf/")
-        resp = await resp.read()
-        # print(resp)
+        try:
+            steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
+                                              (await resp.read()).decode(encoding='utf-8', errors='ignore'))[0]
 
-        if cfg.USERNAME.lower() in resp.decode(encoding='utf-8', errors='ignore').lower():
-            print("bptf ok")
-        else:
-            print("fail")
+            print(f'Successfully logged in to backpack.tf as {username} ({steamID}).')
+
+        except Exception:
+            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
 
 
@@ -158,6 +162,7 @@ class Login:
         await self.steam_logout()
         await self.backpack_logout()
 
+        await asyncio.sleep(0.1)
         await self.session.close()
         print('Successfully logged out.')
 
@@ -169,8 +174,6 @@ class Login:
         for cookie in cookies:
             cookie['domain'] = new_domain
         return cookies
-
-
 
 
 

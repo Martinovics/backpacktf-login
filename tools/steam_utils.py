@@ -14,7 +14,7 @@ def gen_publickey(rsa_modulus, rsa_exponent):
 
 
 def encode_password(password, publickey=None, rsa_modulus=None, rsa_exponent=None, as_string=False):
-    
+
     if publickey is not None:
         pwd = base64.b64encode(rsa.encrypt(password.encode('UTF-8'), publickey))
     else:
@@ -41,7 +41,7 @@ def gen_steam_guard_code(shared_secret: str, timestamp: int = time.time()) -> st
 
     b = hash_[19] & 0xF
     code_point = (hash_[b] & 0x7F) << 24 | (hash_[b + 1] & 0xFF) << 16 | (hash_[b + 2] & 0xFF) << 8 | (hash_[b + 3] & 0xFF)
-    
+
     code = ''
     char_set = '23456789BCDFGHJKMNPQRTVWXY'
     for _ in range(5):
