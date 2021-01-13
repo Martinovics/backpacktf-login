@@ -12,7 +12,7 @@ from tools.config import Config as cfg
 
 
 class Login:
-    
+
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({'User-Agent': const.USER_AGENT})
@@ -78,7 +78,7 @@ class Login:
         # check whether we are really logged in
         resp = self.session.get('https://steamcommunity.com/')
         resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
-        
+
         username = re.findall(r'data-tooltip-content=".submenu_username">(.*?)</a>', resp)
         steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
 
@@ -104,11 +104,12 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        print(resp.url)
+        # print(resp.url)
         resp = self.session.post(resp.url, data=payload)
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
+        print(self.session.cookies)
 
         # check whether we are really logged in
         resp = self.session.get("https://backpack.tf/")
@@ -120,6 +121,17 @@ class Login:
             print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
         else:
             raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
+
+        ''' 
+        payload = {
+            'item_name': 'Mann Co. Supply Crate Key',
+            'intent': 'sell',
+            'blanket': '1',
+            'user-id': self.session.cookies.get_dict()['user-id']
+        }
+        resp = self.session.post('https://backpack.tf/classifieds/alerts', data=payload)
+        print(resp.text)
+        '''
 
 
 
@@ -150,7 +162,7 @@ class Login:
     def logout(self) -> None:
         self.steam_logout()
         self.backpack_logout()
-        
+
         self.session.close()
         print('Successfully logged out.')
 

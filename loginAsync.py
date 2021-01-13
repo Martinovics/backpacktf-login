@@ -97,7 +97,6 @@ class Login:
     async def backpack_login(self) -> None:
 
         resp = await self.session.post('https://backpack.tf/login/')
-        await asyncio.sleep(0.1)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
@@ -108,7 +107,13 @@ class Login:
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        print(utils.jar_to_dict(self.session.cookie_jar))
+        print(resp.headers)
+        print('#')
+        print(resp.cookies)
+        print('#')
+
+        # print(self.session.cookie_jar._cookies)
+        print(list(self.session.cookie_jar))
 
         try:
             steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
@@ -119,6 +124,23 @@ class Login:
         except Exception:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
+
+        await asyncio.sleep(0.2)
+
+        '''
+        resp = await self.session.get('https://backpack.tf/settings')
+        print((await resp.read()).decode(encoding='utf-8', errors='ignore'))
+        '''
+
+
+        payload = {
+            'item_name': 'Mann Co. Supply Crate Key',
+            'intent': 'sell',
+            'blanket': '1',
+            'user-id': utils.jar_to_dict(self.session.cookie_jar)['user-id']
+        }
+        resp = await self.session.post('https://backpack.tf/classifieds/alerts', data=payload)
+        print(len((await resp.read()).decode(encoding='utf-8', errors='ignore')))
 
 
 
