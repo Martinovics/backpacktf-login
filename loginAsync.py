@@ -96,9 +96,27 @@ class Login:
 
     async def backpack_login(self) -> None:
 
+        print(list(self.session.cookie_jar))
+        print()
+
         resp = await self.session.post('https://backpack.tf/login/')
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
+
+        print(list(self.session.cookie_jar))
+        print()
+
+        await asyncio.sleep(0.2)
+
+        cookies = self.set_cookie('backpack.tf', '.backpack.tf')
+        self.session.cookie_jar.update_cookies(cookies, URL('.backpack.tf'))
+
+        for morsel in list(self.session.cookie_jar):
+            if morsel['domain'] == 'backpack.tf':
+                morsel['domain'] = '.backpack.tf'
+
+        print(list(self.session.cookie_jar))
+        print()
 
 
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
@@ -107,13 +125,8 @@ class Login:
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        print(resp.headers)
-        print('#')
-        print(resp.cookies)
-        print('#')
-
-        # print(self.session.cookie_jar._cookies)
         print(list(self.session.cookie_jar))
+        print()
 
         try:
             steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
@@ -132,7 +145,7 @@ class Login:
         print((await resp.read()).decode(encoding='utf-8', errors='ignore'))
         '''
 
-
+        '''
         payload = {
             'item_name': 'Mann Co. Supply Crate Key',
             'intent': 'sell',
@@ -141,7 +154,7 @@ class Login:
         }
         resp = await self.session.post('https://backpack.tf/classifieds/alerts', data=payload)
         print(len((await resp.read()).decode(encoding='utf-8', errors='ignore')))
-
+        '''
 
 
     async def login(self) -> None:
@@ -196,7 +209,6 @@ class Login:
         for cookie in cookies:
             cookie['domain'] = new_domain
         return cookies
-
 
 
 

@@ -92,9 +92,15 @@ class Login:
 
     def backpack_login(self) -> None:
 
+        print(self.session.cookies)
+        print()
+
         resp = self.session.post('https://backpack.tf/login/')
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
+
+        print(self.session.cookies)
+        print()
 
         soup = BeautifulSoup(resp.text, "lxml")  # .read() --> .decode(encoding='utf-8', errors='ignore')
         payload = {
@@ -104,12 +110,12 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        # print(resp.url)
         resp = self.session.post(resp.url, data=payload)
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
         print(self.session.cookies)
+        print()
 
         # check whether we are really logged in
         resp = self.session.get("https://backpack.tf/")
@@ -122,7 +128,8 @@ class Login:
         else:
             raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
 
-        ''' 
+
+        '''
         payload = {
             'item_name': 'Mann Co. Supply Crate Key',
             'intent': 'sell',
