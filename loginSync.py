@@ -99,7 +99,10 @@ class Login:
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
+        print(resp.status_code)
+        print(resp.cookies)
         print(self.session.cookies)
+        print(resp.headers)
         print()
 
         soup = BeautifulSoup(resp.text, "lxml")  # .read() --> .decode(encoding='utf-8', errors='ignore')
@@ -114,7 +117,10 @@ class Login:
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
+        print(resp.status_code)
+        print(resp.cookies)
         print(self.session.cookies)
+        print(resp.headers)
         print()
 
         # check whether we are really logged in

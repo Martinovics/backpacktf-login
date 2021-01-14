@@ -99,33 +99,38 @@ class Login:
         print(list(self.session.cookie_jar))
         print()
 
-        resp = await self.session.post('https://backpack.tf/login/')
+        resp = await self.session.post('https://backpack.tf/login')
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        print(list(self.session.cookie_jar))
-        print()
-
         await asyncio.sleep(0.2)
 
+        '''
         cookies = self.set_cookie('backpack.tf', '.backpack.tf')
         self.session.cookie_jar.update_cookies(cookies, URL('.backpack.tf'))
 
         for morsel in list(self.session.cookie_jar):
             if morsel['domain'] == 'backpack.tf':
                 morsel['domain'] = '.backpack.tf'
-
+        '''
+        print(resp.status)
+        print(resp.cookies)
         print(list(self.session.cookie_jar))
+        print(resp.headers)
         print()
+
 
 
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
         resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
+        # resp = await self.session.post(resp.url, data=payload, headers={"Content-Type": "multipart/form-data"})
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
+        print(resp.status)
         print(list(self.session.cookie_jar))
+        print(resp.headers)
         print()
 
         try:
