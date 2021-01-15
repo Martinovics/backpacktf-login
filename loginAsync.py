@@ -96,7 +96,10 @@ class Login:
 
     async def backpack_login(self) -> None:
 
-        print('ALL COOKIES\n', [print(c) for c in list(self.session.cookie_jar)])
+
+        print('ALL COOKIES')
+        for c in list(self.session.cookie_jar):
+            print(c)
         print()
 
         resp = await self.session.post('https://backpack.tf/login')
@@ -104,10 +107,14 @@ class Login:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
         print(resp.status)
-        print('ALL COOKIES\n', [print(c) for c in list(self.session.cookie_jar)])
+        print('RESP COOKIES')
+        for c in list(resp.cookies):
+            print(c)
+        print('ALL COOKIES')
+        for c in list(self.session.cookie_jar):
+            print(c)
         print('HEADERS\n', resp.headers)
         print()
-
 
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
@@ -115,10 +122,17 @@ class Login:
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
+
         print(resp.status)
-        print('ALL COOKIES\n', [print(c) for c in list(self.session.cookie_jar)])
+        print('RESP COOKIES')
+        for c in list(resp.cookies):
+            print(c)
+        print('ALL COOKIES')
+        for c in list(self.session.cookie_jar):
+            print(c)
         print('HEADERS\n', resp.headers)
         print()
+
 
         try:
             steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
