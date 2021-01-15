@@ -5,3 +5,4 @@ venv
 __pycache__
 
 tools/config.py
+tools/config_bot.py
