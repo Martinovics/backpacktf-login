@@ -94,57 +94,60 @@ class Login:
 
 
 
+    def print_stuff(self, resp, status: bool=False, headers: bool=False, resp_cookies: bool=False, all_cookies: bool=False) -> None:
+
+        if True:  # you can disable print
+
+            if status:
+                print(f'RESPONSE STATUS:\n  {resp.status}')
+
+            if headers:
+                print(f'HEADERS:\n  {resp.headers}')
+
+            if resp_cookies:
+                print('RESPONSE COOKIES:')
+                for c in list(resp.cookies):
+                    print(f'  {c}')
+
+            if all_cookies:
+                print('ALL COOKIES:')
+                for c in list(self.session.cookie_jar):
+                    print(f'  {c}')
+
+            print()
+
+
+
+
     async def backpack_login(self) -> None:
 
+        self.print_stuff(None, all_cookies=True)
 
-        print('ALL COOKIES')
-        for c in list(self.session.cookie_jar):
-            print(c)
-        print()
 
         resp = await self.session.post('https://backpack.tf/login')
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
-        print(resp.status)
-        print('RESP COOKIES')
-        for c in list(resp.cookies):
-            print(c)
-        print('ALL COOKIES')
-        for c in list(self.session.cookie_jar):
-            print(c)
-        print('HEADERS\n', resp.headers)
-        print()
 
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
         resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-
-
-        print(resp.status)
-        print('RESP COOKIES')
-        for c in list(resp.cookies):
-            print(c)
-        print('ALL COOKIES')
-        for c in list(self.session.cookie_jar):
-            print(c)
-        print('HEADERS\n', resp.headers)
-        print()
-
 
         try:
             steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
                                               (await resp.read()).decode(encoding='utf-8', errors='ignore'))[0]
-
             print(f'Successfully logged in to backpack.tf as {username} ({steamID}).')
-
         except Exception:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
 
+
         resp = await self.session.get('https://backpack.tf')
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
         # if we have successfully logged in there should be our username (still)

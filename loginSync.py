@@ -90,20 +90,40 @@ class Login:
 
 
 
+    def print_stuff(self, resp, status: bool=False, headers: bool=False, resp_cookies: bool=False, all_cookies: bool=False) -> None:
+
+        if True:  # you can disable print
+
+            if status:
+                print(f'RESPONSE STATUS:\n  {resp.status_code}')
+
+            if headers:
+                print(f'HEADERS:\n  {resp.headers}')
+
+            if resp_cookies:
+                print('RESPONSE COOKIES:')
+                for c in list(resp.cookies):
+                    print(f'  {c}')
+
+            if all_cookies:
+                print('ALL COOKIES:')
+                for c in list(self.session.cookies):
+                    print(f'  {c}')
+
+            print()
+
+
+
+
     def backpack_login(self) -> None:
 
-        print('COOKIES\n', self.session.cookies)
-        print()
+        self.print_stuff(None, all_cookies=True)
 
         resp = self.session.post('https://backpack.tf/login/')
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
-        print(resp.status_code)
-        print(resp.cookies)
-        print(self.session.cookies)
-        print(resp.headers)
-        print()
 
         soup = BeautifulSoup(resp.text, "lxml")  # .read() --> .decode(encoding='utf-8', errors='ignore')
         payload = {
@@ -114,17 +134,14 @@ class Login:
             }
 
         resp = self.session.post(resp.url, data=payload)
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
-        print(resp.status_code)
-        print(resp.cookies)
-        print(self.session.cookies)
-        print(resp.headers)
-        print()
 
         # check whether we are really logged in
         resp = self.session.get("https://backpack.tf/")
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
         login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
 
