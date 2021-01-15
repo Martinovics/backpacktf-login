@@ -92,7 +92,7 @@ class Login:
 
     def backpack_login(self) -> None:
 
-        print(self.session.cookies)
+        print('COOKIES\n', self.session.cookies)
         print()
 
         resp = self.session.post('https://backpack.tf/login/')
