@@ -30,7 +30,7 @@ class Login:
         ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
         encoded_password = utils.encode_password(
-            password=cfg.PASSWORD, 
+            password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
             )
