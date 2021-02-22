@@ -10,6 +10,7 @@ import tools.steam_guard as steam_guard
 from tools.config import Const as const
 from tools.config import Config as cfg
 
+import json
 
 
 
@@ -125,15 +126,41 @@ class Login:
 
 
         resp = await self.session.post('https://backpack.tf/login')
+        print('##########\n' + str(resp.url) + '\n##########\n')
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
 
-        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
+        # soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
+        soup = BeautifulSoup(await resp.text(), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
-        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
+        # resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
+        
+        headers={
+            "Content-Type": "multipart/form-data",
+            "Referer": str(resp.url)
+            }
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=json.dumps(payload).encode('utf-8'), headers=headers, allow_redirects=False)
+        # resp = await self.session.post(resp.url, json=json.dumps(payload), headers=headers, allow_redirects=False)
+
+        print(await resp.text())
+
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+
+        print()
+        if resp.history:
+            print("Request was redirected")
+            for r in resp.history:
+                print(r.status, r.url)
+            print("Final destination:")
+            print(resp.status, resp.url)
+        else:
+            print("Request was not redirected")
+        print('\n\n')
+
+        raise Exception('DEBUG')
+
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 

@@ -133,8 +133,27 @@ class Login:
             'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
             }
 
-        resp = self.session.post(resp.url, data=payload)
+        headers={
+            "Content-Type": "multipart/form-data",
+            "Referer": str(resp.url)
+            }
+
+        resp = self.session.post('https://steamcommunity.com/openid/login', data=payload, headers=headers, allow_redirects=False)
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+        
+        print()
+        if resp.history:
+            print("Request was redirected")
+            for r in resp.history:
+                print(r.status_code, r.url)
+            print("Final destination:")
+            print(resp.status_code, resp.url)
+        else:
+            print("Request was not redirected")
+        print('\n\n')
+
+        raise Exception('DEBUG')
+        
         if resp.status_code != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
 
