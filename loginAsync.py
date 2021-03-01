@@ -132,22 +132,20 @@ class Login:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
 
-        # soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
-        soup = BeautifulSoup(await resp.text(), "lxml")
+        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
         # resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
         
         headers={
-            "Content-Type": "multipart/form-data",
+            # "Content-Type": "multipart/form-data",
             "Referer": str(resp.url)
             }
-        resp = await self.session.post('https://steamcommunity.com/openid/login', data=json.dumps(payload).encode('utf-8'), headers=headers, allow_redirects=False)
+        # resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload)
+        # resp = await self.session.post('https://steamcommunity.com/openid/login', data=json.dumps(payload).encode('utf-8'), headers=headers, allow_redirects=False)
         # resp = await self.session.post(resp.url, json=json.dumps(payload), headers=headers, allow_redirects=False)
+        # self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
 
-        print(await resp.text())
-
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-
+        '''
         print()
         if resp.history:
             print("Request was redirected")
@@ -158,8 +156,29 @@ class Login:
         else:
             print("Request was not redirected")
         print('\n\n')
+        '''
 
-        raise Exception('DEBUG')
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, allow_redirects=False)
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+
+        print(resp.headers['Location'])
+        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+
+        print(resp.headers['Location'])
+        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)
+        
+        
+        
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+
+        resp = await self.session.get('https://backpack.tf/', allow_redirects=False)
+        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+        
+
+        
+
+        # raise Exception('DEBUG')
 
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")

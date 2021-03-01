@@ -138,7 +138,8 @@ class Login:
             "Referer": str(resp.url)
             }
 
-        resp = self.session.post('https://steamcommunity.com/openid/login', data=payload, headers=headers, allow_redirects=False)
+        resp = self.session.post('https://steamcommunity.com/openid/login', data=payload, allow_redirects=False)
+        # resp = self.session.post('https://steamcommunity.com/openid/login', data=payload, headers=headers, allow_redirects=False)
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         
         print()
