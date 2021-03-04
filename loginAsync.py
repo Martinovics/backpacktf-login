@@ -168,8 +168,12 @@ class Login:
         print(resp.headers['Location'])
         resp = await self.session.get(resp.headers['Location'], allow_redirects=False)
         
-        
-        
+        print('\n\n')
+        # https://www.programcreek.com/python/example/103864/http.cookies.SimpleCookie
+        for c in resp.headers.getall('Set-Cookie'):
+            print(c)
+        print('\n\n')
+
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
 
         resp = await self.session.get('https://backpack.tf/', allow_redirects=False)
