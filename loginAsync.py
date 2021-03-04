@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 from yarl import URL
 from bs4 import BeautifulSoup
+from http.cookies import SimpleCookie
 
 import tools.utils as utils
 import tools.steam_guard as steam_guard
@@ -167,11 +168,19 @@ class Login:
 
         print(resp.headers['Location'])
         resp = await self.session.get(resp.headers['Location'], allow_redirects=False)
-        
+
         print('\n\n')
         # https://www.programcreek.com/python/example/103864/http.cookies.SimpleCookie
-        for c in resp.headers.getall('Set-Cookie'):
-            print(c)
+        stack_cookies = SimpleCookie()
+        for cookie in resp.headers.getall('Set-Cookie'):
+            print('all', cookie)
+            if 'Max-Age=0;' not in cookie:
+                print('spec', cookie)
+                stack_cookies.load(cookie)
+                
+                # there's a problem with the [] in the cookies
+        
+        self.session.cookie_jar.update_cookies(stack_cookies)
         print('\n\n')
 
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
