@@ -210,8 +210,10 @@ class Login:
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
+        print(resp)
+
         # if we have successfully logged in there should be our username (still)
-        if cfg.USERNAME.lower() in resp:
+        if cfg.USERNAME.lower() in resp.lower():
             print("yea, we're logged in")
         else:
             print('fuk')
