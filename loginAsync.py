@@ -176,7 +176,7 @@ class Login:
             print('all', cookie)
             if 'Max-Age=0;' not in cookie:
                 print('spec', cookie)
-                stack_cookies.load(cookie)
+                stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))
                 
                 # there's a problem with the [] in the cookies
         
@@ -185,6 +185,7 @@ class Login:
 
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
 
+        '''
         resp = await self.session.get('https://backpack.tf/', allow_redirects=False)
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         
@@ -202,7 +203,7 @@ class Login:
             print(f'Successfully logged in to backpack.tf as {username} ({steamID}).')
         except Exception:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-
+        '''
 
 
         resp = await self.session.get('https://backpack.tf')
