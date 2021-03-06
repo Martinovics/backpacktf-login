@@ -1,10 +1,4 @@
 # The versions, that I've used during the development. (might not be that important)
-<<<<<<< Updated upstream
-rsa == 4.6
-lxml == 4.5.2
-aiohttp == 3.6.2
-beautifulsoup4 == 4.9.1
-=======
 
 # python -m venv <myenvname>
 # pip install -r requirements.txt
@@ -13,4 +7,3 @@ rsa == 4.7.2
 lxml == 4.6.2
 aiohttp == 3.7.4
 beautifulsoup4 == 4.9.3
->>>>>>> Stashed changes
