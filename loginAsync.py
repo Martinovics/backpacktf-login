@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 from yarl import URL
 from bs4 import BeautifulSoup
+from http.cookies import SimpleCookie
 
 import rsa
 import hmac
@@ -160,27 +161,6 @@ class Login:
     async def backpack_login(self) -> None:
 
         resp = await self.session.post('https://backpack.tf/login')
-<<<<<<< Updated upstream
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-        if resp.status != 200:
-            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-
-
-        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
-        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
-        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, headers={"Content-Type": "multipart/form-data"})
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-        if resp.status != 200:
-            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-
-        try:
-            steamID, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>',
-                                              (await resp.read()).decode(encoding='utf-8', errors='ignore'))[0]
-            print(f'Successfully logged in to backpack.tf as {username} ({steamID}).')
-        except Exception:
-            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
-
-=======
         self.check_resp(resp.status)
     
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
@@ -200,7 +180,6 @@ class Login:
                 stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))  # there's a problem with the [] in the cookie keys
         
         self.session.cookie_jar.update_cookies(stack_cookies)
->>>>>>> Stashed changes
 
 
         resp = await self.session.get('https://backpack.tf')
@@ -208,26 +187,6 @@ class Login:
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
         resp = re.sub(r'[\t\n]', '', resp).replace('    ', '')
 
-<<<<<<< Updated upstream
-        # if we have successfully logged in there should be our username (still)
-        if cfg.USERNAME.lower() in resp:
-            print("yea, we're logged in")
-        else:
-            print('fuk')
-
-
-        '''
-        payload = {
-            'item_name': 'Mann Co. Supply Crate Key',
-            'intent': 'sell',
-            'blanket': '1',
-            'user-id': utils.jar_to_dict(self.session.cookie_jar)['user-id']
-        }
-        resp = await self.session.post('https://backpack.tf/classifieds/alerts', data=payload)
-        print(len((await resp.read()).decode(encoding='utf-8', errors='ignore')))
-        '''
-
-=======
         
         try:
             steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
@@ -236,7 +195,6 @@ class Login:
         
         self.bptf_logged_in = True
         print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
->>>>>>> Stashed changes
 
 
 
