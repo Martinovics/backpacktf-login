@@ -5,10 +5,18 @@ import asyncio
 from yarl import URL
 from bs4 import BeautifulSoup
 
-import tools.utils as utils
-import tools.steam_guard as steam_guard
-from tools.config import Const as const
-from tools.config import Config as cfg
+import rsa
+import hmac
+import base64
+import hashlib
+
+try:
+    from tools.config import Const as const
+    from tools.config import Config as cfg
+except ImportError:
+    raise Exception("Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'.")
+
+
 
 
 
@@ -17,14 +25,74 @@ class Login:
 
     def __init__(self, session):
         self.session = session
-        self.stm_logged_in = False
+        self.logged_in = False
         self.bptf_logged_in = False
+        self.steam_logged_in = False
+
+
+
+    @classmethod
+    def encode_password(self, password, rsa_modulus, rsa_exponent) -> str:
+        return  base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
 
 
 
 
-    def get_session(self):
+    @classmethod
+    def gen_steam_guard_code(self, shared_secret: str) -> str:
+
+        hash_ = hmac.digest(
+            key=base64.b64decode(shared_secret),
+            msg=(int(time.time()) // 30).to_bytes(8, byteorder='big'),
+            digest=hashlib.sha1
+            )
+
+        b = hash_[19] & 0xF
+        code_point = (hash_[b] & 0x7F) << 24 | (hash_[b + 1] & 0xFF) << 16 | (hash_[b + 2] & 0xFF) << 8 | (hash_[b + 3] & 0xFF)
+
+        code = ''
+        char_set = '23456789BCDFGHJKMNPQRTVWXY'
+        for _ in range(5):
+            code_point, i = divmod(code_point, len(char_set))
+            code += char_set[i]
+
+        return code
+
+
+
+
+    @classmethod
+    def jar_to_dict(self, cookie_jar) -> dict:
+        return {cookie.key: cookie.value for cookie in cookie_jar}
+
+
+
+
+    @classmethod
+    def check_resp(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
+        
+        if status != expected_status or err_messsage:
+            if err_messsage:
+                raise Exception(err_messsage)  
+            raise Exception(f'There was an error. Expected status: {expected_status}, actual status: {status}')
+
+
+
+
+    def get_session(self) -> aiohttp.ClientSession:
         return self.session
+
+    
+    def is_logged_in(self) -> bool:
+        return self.logged_in
+
+    
+    def is_bptf_logged_in(self) -> bool:
+        return self.bptf_logged_in
+
+
+    def is_steam_logged_in(self) -> bool:
+        return self.steam_logged_in
 
 
 
@@ -32,21 +100,16 @@ class Login:
     async def steam_login(self) -> None:
 
         resp = await self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME})
+        self.check_resp(resp.status)
         ourRsa = await resp.json()
 
-        encoded_password = utils.encode_password(
-            as_string=True,
+
+        two_factor_code = self.gen_steam_guard_code(shared_secret=cfg.SHARED_SECRET)
+        encoded_password = self.encode_password(
             password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
             )
-
-        try:
-            two_factor_code = steam_guard.generate_code(shared_secret=cfg.SHARED_SECRET)
-        except Exception:
-            err = 'There was an error while logging into steam.'
-            raise Exception(err + '\n   Reason: The shared_secret that you have given is incorrect.')
-
 
         payload = {
             'username': cfg.USERNAME,
@@ -62,69 +125,42 @@ class Login:
             'donotcache': str(int(time.time() * 1000))
             }
 
-        resp = await self.session.post("https://store.steampowered.com/login/dologin", data=payload)
-        resp = await resp.json()
 
-        if not resp['success']:
-            err = 'There was an error while logging into steam.'
-            if resp.get('message'):
-                err += f"\n   Reason: {resp['message']}"
-            raise Exception(err)
+        resp = await self.session.post("https://store.steampowered.com/login/dologin", data=payload)
+        self.check_resp(resp.status)
+        resp = await resp.json()
 
         for url in resp['transfer_urls']:
             await self.session.post(url, data=resp['transfer_parameters'])
+            
 
-        cookies = self.set_cookie(const.COMMUNITY_URL[8:], const.STORE_URL[8:])
+        
+        cookies = self.session.cookie_jar.filter_cookies(const.COMMUNITY_URL[8:])
+        for cookie in cookies:
+            cookie['domain'] = const.STORE_URL[8:]
+
         self.session.cookie_jar.update_cookies(cookies, URL(const.COMMUNITY_URL))
 
 
         # check whether we are really logged in
-        resp = await self.session.get('https://steamcommunity.com/')
-        resp = await resp.read()
-        resp = re.sub(r'[\r\n\t]', '', resp.decode(encoding='utf-8', errors='ignore')).replace('  ', '')
+        resp = await self.session.get('https://steamcommunity.com')
+        self.check_resp(resp.status)
+        resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
-        username = re.findall(r'data-tooltip-content=".submenu_username">(.*?)</a>', resp)
-        steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
+        try:
+            steamID64, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>', resp)[0]
+        except (ValueError, IndexError):
+            raise Exception('some exception')
 
-        if username and steamID64:
-            print(f'Successfully logged in to steam as {username[-1]} ({steamID64[-1]}).')
-        else:
-            raise Exception("There was an error while logging into steam.\n   Reason: unknown")
-
-
-
-
-    def print_stuff(self, resp, status: bool=False, headers: bool=False, resp_cookies: bool=False, all_cookies: bool=False) -> None:
-
-        if True:  # you can disable print
-
-            if status:
-                print(f'RESPONSE STATUS:\n  {resp.status}')
-
-            if headers:
-                print(f'HEADERS:\n  {resp.headers}')
-
-            if resp_cookies:
-                print('RESPONSE COOKIES:')
-                for c in list(resp.cookies):
-                    print(f'  {c}')
-
-            if all_cookies:
-                print('ALL COOKIES:')
-                for c in list(self.session.cookie_jar):
-                    print(f'  {c}')
-
-            print()
-
+        self.steam_logged_in = True
+        print(f'Successfully logged in to steam as {username} ({steamID64}).')
 
 
 
     async def backpack_login(self) -> None:
 
-        self.print_stuff(None, all_cookies=True)
-
-
         resp = await self.session.post('https://backpack.tf/login')
+<<<<<<< Updated upstream
         self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
         if resp.status != 200:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
@@ -144,12 +180,35 @@ class Login:
         except Exception:
             raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status}")
 
+=======
+        self.check_resp(resp.status)
+    
+        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
+        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
+
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, allow_redirects=False)
+        self.check_resp(resp.status, 302)
+        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 1
+        self.check_resp(resp.status, 301)
+        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 2 --x--> redirect 3 (https://backpack.tf)
+        self.check_resp(resp.status, 302)
+
+
+        stack_cookies = SimpleCookie()
+        for cookie in resp.headers.getall('Set-Cookie'):
+            if 'Max-Age=0;' not in cookie:  # 2 empty, 2 valuable cookie pairs
+                stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))  # there's a problem with the [] in the cookie keys
+        
+        self.session.cookie_jar.update_cookies(stack_cookies)
+>>>>>>> Stashed changes
 
 
         resp = await self.session.get('https://backpack.tf')
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
+        self.check_resp(resp.status)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
+        resp = re.sub(r'[\t\n]', '', resp).replace('    ', '')
 
+<<<<<<< Updated upstream
         # if we have successfully logged in there should be our username (still)
         if cfg.USERNAME.lower() in resp:
             print("yea, we're logged in")
@@ -168,26 +227,38 @@ class Login:
         print(len((await resp.read()).decode(encoding='utf-8', errors='ignore')))
         '''
 
+=======
+        
+        try:
+            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
+        except (ValueError, IndexError):
+            raise Exception('some exception')
+        
+        self.bptf_logged_in = True
+        print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
+>>>>>>> Stashed changes
 
 
 
     async def login(self) -> None:
         await self.steam_login()
         await self.backpack_login()
-        print('Successfully logged in.')
 
+        if not (self.steam_logged_in and self.bptf_logged_in):
+            check_resp(err_messsage='There was an error while logging in.')
+
+        print('Successfully logged in.')
+        self.logged_in = True
 
 
 
     async def steam_logout(self) -> None:
 
-        cookies = utils.jar_to_dict(self.session.cookie_jar)
+        cookies = self.jar_to_dict(self.session.cookie_jar)
         resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': cookies['sessionid']})
+        self.check_resp(resp.status)
 
-        if resp.status != 200:
-            resp = await resp.read()
-            raise Exception(f"There was an error while logging out from steam.\n   Reason: {resp}")
-
+        self.steam_logged_in = False
         print('Successfully logged out from steam.')
 
 
@@ -195,13 +266,11 @@ class Login:
 
     async def backpack_logout(self) -> None:
 
-        cookies = utils.jar_to_dict(self.session.cookie_jar)
+        cookies = self.jar_to_dict(self.session.cookie_jar)
         resp = await self.session.get(f"https://backpack.tf/logout?user-id={cookies['user-id']}")
+        self.check_resp(resp.status)
 
-        if resp.status != 200:
-            resp = await resp.read()
-            raise Exception(f"There was an error while logging out from backpack.tf.\n   Reason: {resp}")
-
+        self.bptf_logged_in = False
         print('Successfully logged out from backpack.tf.')
 
 
@@ -210,19 +279,18 @@ class Login:
     async def logout(self) -> None:
         await self.steam_logout()
         await self.backpack_logout()
+        
+        if self.steam_logged_in or self.bptf_logged_in:
+            self.check_resp(err_messsage='There was an error while logging out.')
 
         await asyncio.sleep(0.1)
         await self.session.close()
+        
+        self.logged_in = False
         print('Successfully logged out.')
 
 
 
-
-    def set_cookie(self, prev_domain, new_domain):
-        cookies = self.session.cookie_jar.filter_cookies(prev_domain)
-        for cookie in cookies:
-            cookie['domain'] = new_domain
-        return cookies
 
 
 
