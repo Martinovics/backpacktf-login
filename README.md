@@ -1,7 +1,7 @@
 # backpacktf-login
-This is a program, which can **log in** to (or **log out** from) your *steam* and *backpack.tf* account.
-*That's all. :/*
+A program, which can **log in** to your *steam* and *backpack.tf* account. *That's all. :/*
 
 **Usage:**
-- Put your login information into the *tools/config_temp.py* file, then rename it to *config.py*.
+- Insert your login information into the **tools/config_temp.py** file, then rename it to **config.py**.
+- Install required libraries via the `pip install -r requirements.txt`.
 - Use *loginSync.py* or *loginAsync.py* for your project.
