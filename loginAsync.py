@@ -86,9 +86,9 @@ class Login:
     @classmethod
     def check_error(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
         
+        if err_messsage:
+            raise Exception(err_messsage)
         if status != expected_status or err_messsage:
-            if err_messsage:
-                raise Exception(err_messsage)  
             raise Exception(f'There was an error. Expected status: {expected_status}, actual status: {status}')
 
 
