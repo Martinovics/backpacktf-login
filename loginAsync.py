@@ -24,7 +24,7 @@ except ImportError:
 
 class Login:
 
-    def __init__(self, session: aiohttp.ClientSession = aiohttp.ClientSession()):
+    def __init__(self, session: aiohttp.ClientSession):
         self.session = session
         self.logged_in = 0        # --> epoch
         self.bptf_logged_in = 0   # --> epoch
