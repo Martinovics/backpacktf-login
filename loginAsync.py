@@ -26,9 +26,23 @@ class Login:
 
     def __init__(self, session):
         self.session = session
-        self.logged_in = False
-        self.bptf_logged_in = False
-        self.steam_logged_in = False
+        self.logged_in = 0        # --> epoch
+        self.bptf_logged_in = 0   # --> epoch
+        self.steam_logged_in = 0  # --> epoch
+
+
+
+
+    @classmethod
+    def elapsed_time(self, seconds: [int, float]) -> str:
+        seconds = int(seconds)
+        
+        hour = seconds // 3600
+        minute = (seconds - hour * 3600) // 60
+        second = seconds - hour * 3600 - minute * 60
+
+        return f'{hour}h{minute}m{second}s'
+
 
 
 
@@ -85,15 +99,15 @@ class Login:
 
     
     def is_logged_in(self) -> bool:
-        return self.logged_in
+        return bool(self.logged_in)
 
     
     def is_bptf_logged_in(self) -> bool:
-        return self.bptf_logged_in
+        return bool(self.bptf_logged_in)
 
 
     def is_steam_logged_in(self) -> bool:
-        return self.steam_logged_in
+        return bool(self.steam_logged_in)
 
 
 
@@ -153,7 +167,7 @@ class Login:
         except (ValueError, IndexError):
             raise Exception('some exception')
 
-        self.steam_logged_in = True
+        self.steam_logged_in = time.time()
         print(f'Successfully logged in to steam as {username} ({steamID64}).')
 
 
@@ -193,7 +207,7 @@ class Login:
         except (ValueError, IndexError):
             raise Exception('some exception')
         
-        self.bptf_logged_in = True
+        self.bptf_logged_in = time.time()
         print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
 
 
@@ -205,8 +219,9 @@ class Login:
         if not (self.steam_logged_in and self.bptf_logged_in):
             check_resp(err_messsage='There was an error while logging in.')
 
+        self.logged_in = time.time()
         print('Successfully logged in.')
-        self.logged_in = True
+
 
 
 
@@ -216,7 +231,7 @@ class Login:
         resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': cookies['sessionid']})
         self.check_resp(resp.status)
 
-        self.steam_logged_in = False
+        self.steam_logged_in = 0
         print('Successfully logged out from steam.')
 
 
@@ -228,7 +243,7 @@ class Login:
         resp = await self.session.get(f"https://backpack.tf/logout?user-id={cookies['user-id']}")
         self.check_resp(resp.status)
 
-        self.bptf_logged_in = False
+        self.bptf_logged_in = 0
         print('Successfully logged out from backpack.tf.')
 
 
@@ -244,9 +259,8 @@ class Login:
         await asyncio.sleep(0.1)
         await self.session.close()
         
-        self.logged_in = False
-        print('Successfully logged out.')
-
+        print(f'Successfully logged out. Session lasted for {self.elapsed_time(time.time()-self.logged_in)}.')
+        self.logged_in = 0
 
 
 
