@@ -24,7 +24,7 @@ except ImportError:
 
 class Login:
 
-    def __init__(self, session):
+    def __init__(self, session: aiohttp.ClientSession = aiohttp.ClientSession()):
         self.session = session
         self.logged_in = 0        # --> epoch
         self.bptf_logged_in = 0   # --> epoch
@@ -147,9 +147,8 @@ class Login:
 
         for url in resp['transfer_urls']:
             await self.session.post(url, data=resp['transfer_parameters'])
-            
 
-        
+
         cookies = self.session.cookie_jar.filter_cookies(const.COMMUNITY_URL[8:])
         for cookie in cookies:
             cookie['domain'] = const.STORE_URL[8:]
@@ -169,6 +168,7 @@ class Login:
 
         self.steam_logged_in = time.time()
         print(f'Successfully logged in to steam as {username} ({steamID64}).')
+
 
 
 
@@ -196,12 +196,12 @@ class Login:
         self.session.cookie_jar.update_cookies(stack_cookies)
 
 
+        # check whether we are really logged in 
         resp = await self.session.get('https://backpack.tf')
         self.check_error(resp.status)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
         resp = re.sub(r'[\t\n]', '', resp).replace('    ', '')
 
-        
         try:
             steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
         except (ValueError, IndexError):
@@ -209,6 +209,7 @@ class Login:
         
         self.bptf_logged_in = time.time()
         print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
+
 
 
 
