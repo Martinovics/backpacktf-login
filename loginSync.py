@@ -3,44 +3,118 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
-import tools.utils as utils
-import tools.steam_guard as steam_guard
-from tools.config import Const as const
-from tools.config import Config as cfg
+import rsa
+import hmac
+import base64
+import hashlib
+
+try:
+    from tools.config import Const as const
+    from tools.config import Config as cfg
+except ImportError:
+    raise Exception("Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'.")
+
+
 
 
 
 
 class Login:
 
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({'User-Agent': const.USER_AGENT})
+    def __init__(self, session: requests.Session = requests.Session()):
+        self.session = session
+        self.logged_in = 0        # --> epoch
+        self.bptf_logged_in = 0   # --> epoch
+        self.steam_logged_in = 0  # --> epoch
 
 
 
 
-    def get_session(self):
+    @classmethod
+    def elapsed_time(self, seconds: [int, float]) -> str:
+        seconds = int(seconds)
+        
+        hour = seconds // 3600
+        minute = (seconds - hour * 3600) // 60
+        second = seconds - hour * 3600 - minute * 60
+
+        return f'{hour}h{minute}m{second}s'
+
+
+
+
+    @classmethod
+    def encode_password(self, password, rsa_modulus, rsa_exponent) -> str:
+        return  base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
+
+
+
+
+    @classmethod
+    def gen_steam_guard_code(self, shared_secret: str) -> str:
+
+        hash_ = hmac.digest(
+            key=base64.b64decode(shared_secret),
+            msg=(int(time.time()) // 30).to_bytes(8, byteorder='big'),
+            digest=hashlib.sha1
+            )
+
+        b = hash_[19] & 0xF
+        code_point = (hash_[b] & 0x7F) << 24 | (hash_[b + 1] & 0xFF) << 16 | (hash_[b + 2] & 0xFF) << 8 | (hash_[b + 3] & 0xFF)
+
+        code = ''
+        char_set = '23456789BCDFGHJKMNPQRTVWXY'
+        for _ in range(5):
+            code_point, i = divmod(code_point, len(char_set))
+            code += char_set[i]
+
+        return code
+
+
+
+
+    @classmethod
+    def check_error(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
+        
+        if err_messsage:
+            raise Exception(err_messsage)
+        if status != expected_status or err_messsage:
+            raise Exception(f'There was an error. Expected status: {expected_status}, actual status: {status}')
+
+
+
+
+    def get_session(self) -> requests.Session:
         return self.session
+
+    
+    def is_logged_in(self) -> bool:
+        return bool(self.logged_in)
+
+    
+    def is_bptf_logged_in(self) -> bool:
+        return bool(self.bptf_logged_in)
+
+
+    def is_steam_logged_in(self) -> bool:
+        return bool(self.steam_logged_in)
 
 
 
 
     def steam_login(self) -> None:
-        ourRsa = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME}).json()
 
-        encoded_password = utils.encode_password(
+        resp = self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME})
+        self.check_error(resp.status_code)
+        ourRsa = resp.json()
+
+
+        two_factor_code = self.gen_steam_guard_code(shared_secret=cfg.SHARED_SECRET)
+        encoded_password = self.encode_password(
             password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
             )
-
-        try:
-            two_factor_code = steam_guard.generate_code(shared_secret=cfg.SHARED_SECRET)
-        except Exception:
-            err = 'There was an error while logging into steam.'
-            raise Exception(err + '\n   Reason: The shared_secret that you have given is incorrect.')
-
 
         payload = {
             'username': cfg.USERNAME,
@@ -56,112 +130,62 @@ class Login:
             'donotcache': str(int(time.time() * 1000))
             }
 
-        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload).json()
 
-        if not resp['success']:
-            err = 'There was an error while logging into steam.'
-            if resp.get('message'):
-                err += f"\n   Reason: {resp['message']}"
-            raise Exception(err)
+        resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload)
+        self.check_error(resp.status_code)
+        resp = resp.json()
 
         for url in resp['transfer_urls']:
             self.session.post(url, data=resp['transfer_parameters'])
 
 
         '''
-        stm_cookies = self.session.cookies.get_dict()
-        self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'steamcommunity.com'})
-        self.session.cookies.set(**{"name": "sessionid", "value": stm_cookies['sessionid'], "domain": 'store.steampowered.com'})
+        cookies = self.session.cookies.get_dict()
+        self.session.cookies.set(**{"name": "sessionid", "value": cookies['sessionid'], "domain": 'steamcommunity.com'})
+        self.session.cookies.set(**{"name": "sessionid", "value": cookies['sessionid'], "domain": 'store.steampowered.com'})
         '''
 
 
         # check whether we are really logged in
-        resp = self.session.get('https://steamcommunity.com/')
-        resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
+        resp = self.session.get('https://steamcommunity.com')
+        self.check_error(resp.status_code)
+        resp = resp.text
 
-        username = re.findall(r'data-tooltip-content=".submenu_username">(.*?)</a>', resp)
-        steamID64 = re.findall(r'g_steamID = "(.*?)";', resp)
+        try:
+            steamID64, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>', resp)[0]
+        except (ValueError, IndexError):
+            raise Exception('some exception')
 
-        if username and steamID64:
-            print(f'Successfully logged in to steam as {username[-1]} ({steamID64[-1]}).')
-        else:
-            raise Exception("There was an error while logging into steam.\n   Reason: unknown")
-
-
-
-
-    def print_stuff(self, resp, status: bool=False, headers: bool=False, resp_cookies: bool=False, all_cookies: bool=False) -> None:
-
-        if True:  # you can disable print
-
-            if status:
-                print(f'RESPONSE STATUS:\n  {resp.status_code}')
-
-            if headers:
-                print(f'HEADERS:\n  {resp.headers}')
-
-            if resp_cookies:
-                print('RESPONSE COOKIES:')
-                for c in list(resp.cookies):
-                    print(f'  {c}')
-
-            if all_cookies:
-                print('ALL COOKIES:')
-                for c in list(self.session.cookies):
-                    print(f'  {c}')
-
-            print()
+        self.steam_logged_in = time.time()
+        print(f'Successfully logged in to steam as {username} ({steamID64}).')
 
 
 
 
     def backpack_login(self) -> None:
 
-        self.print_stuff(None, all_cookies=True)
-
-        resp = self.session.post('https://backpack.tf/login/')
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-        if resp.status_code != 200:
-            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
-
-
-        soup = BeautifulSoup(resp.text, "lxml")  # .read() --> .decode(encoding='utf-8', errors='ignore')
-        payload = {
-            'action': soup.findAll("input", {"name": "action"})[0]['value'],
-            'openidmode': soup.findAll("input", {"name": "openid.mode"})[0]['value'],
-            'openidparams': soup.findAll("input", {"name": "openidparams"})[0]['value'],
-            'nonce': soup.findAll("input", {"name": "nonce"})[0]['value']
-            }
+        resp = self.session.post('https://backpack.tf/login')
+        self.check_error(resp.status_code)
+    
+        soup = BeautifulSoup(resp.text, "lxml")
+        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
 
         resp = self.session.post(resp.url, data=payload)
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-        if resp.status_code != 200:
-            raise Exception(f"There was an error while logging into backpack.tf.\n   Reason: {resp.status_code}")
+        self.check_error(resp.status_code)
 
 
-        # check whether we are really logged in
-        resp = self.session.get("https://backpack.tf/")
-        self.print_stuff(resp, status=True, headers=True, resp_cookies=True, all_cookies=True)
-        resp = re.sub(r'[\r\n\t]', '', resp.text).replace('  ', '')
-        login_data = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)
+        # check whether we are really logged in 
+        resp = self.session.get('https://backpack.tf')  # actually this was the final destination of the prev request 
+        self.check_error(resp.status_code)
+        resp = re.sub(r'[\t\n]', '', resp.text).replace('    ', '')
 
-        if login_data:
-            steamID64, username = login_data[0]
-            print(f"Successfully logged in to backpack.tf as {username} ({steamID64}).")
-        else:
-            raise Exception("There was an error while logging into backpack.tf.\n   Reason: unknown")
-
-
-        '''
-        payload = {
-            'item_name': 'Mann Co. Supply Crate Key',
-            'intent': 'sell',
-            'blanket': '1',
-            'user-id': self.session.cookies.get_dict()['user-id']
-        }
-        resp = self.session.post('https://backpack.tf/classifieds/alerts', data=payload)
-        print(resp.text)
-        '''
+        try:
+            steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
+        except (ValueError, IndexError):
+            raise Exception('some exception')
+        
+        self.bptf_logged_in = time.time()
+        print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
 
 
 
@@ -169,21 +193,33 @@ class Login:
     def login(self) -> None:
         self.steam_login()
         self.backpack_login()
+
+        if not (self.steam_logged_in and self.bptf_logged_in):
+            check_error(err_messsage='There was an error while logging in.')
+
+        self.logged_in = time.time()
         print('Successfully logged in.')
 
 
 
 
-
     def steam_logout(self) -> None:
-        self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': self.session.cookies.get_dict()['sessionid']})
+
+        resp = self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': self.session.cookies.get_dict()['sessionid']})
+        self.check_error(resp.status_code)
+
+        self.steam_logged_in = 0
         print('Successfully logged out from steam.')
 
 
 
 
     def backpack_logout(self) -> None:
-        self.session.get(f"https://backpack.tf/logout?user-id={self.session.cookies.get_dict()['user-id']}")
+        
+        resp = self.session.get(f"https://backpack.tf/logout?user-id={self.session.cookies.get_dict()['user-id']}")
+        self.check_error(resp.status_code)
+
+        self.bptf_logged_in = 0
         print('Successfully logged out from backpack.tf.')
 
 
@@ -192,9 +228,15 @@ class Login:
     def logout(self) -> None:
         self.steam_logout()
         self.backpack_logout()
+        
+        if self.steam_logged_in or self.bptf_logged_in:
+            self.check_error(err_messsage='There was an error while logging out.')
 
+        time.sleep(0.1)
         self.session.close()
-        print('Successfully logged out.')
+        
+        print(f'Successfully logged out. Session lasted for {self.elapsed_time(time.time()-self.logged_in)}.')
+        self.logged_in = 0
 
 
 
