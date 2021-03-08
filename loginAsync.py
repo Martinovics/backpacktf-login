@@ -84,7 +84,7 @@ class Login:
 
 
     @classmethod
-    def check_resp(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
+    def check_error(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
         
         if status != expected_status or err_messsage:
             if err_messsage:
@@ -115,7 +115,7 @@ class Login:
     async def steam_login(self) -> None:
 
         resp = await self.session.post('https://steamcommunity.com/login/getrsakey/', data={'username': cfg.USERNAME})
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
         ourRsa = await resp.json()
 
 
@@ -142,7 +142,7 @@ class Login:
 
 
         resp = await self.session.post("https://store.steampowered.com/login/dologin", data=payload)
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
         resp = await resp.json()
 
         for url in resp['transfer_urls']:
@@ -159,7 +159,7 @@ class Login:
 
         # check whether we are really logged in
         resp = await self.session.get('https://steamcommunity.com')
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
         try:
@@ -175,17 +175,17 @@ class Login:
     async def backpack_login(self) -> None:
 
         resp = await self.session.post('https://backpack.tf/login')
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
     
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
 
         resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, allow_redirects=False)
-        self.check_resp(resp.status, 302)
+        self.check_error(resp.status, 302)
         resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 1
-        self.check_resp(resp.status, 301)
+        self.check_error(resp.status, 301)
         resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 2 --x--> redirect 3 (https://backpack.tf)
-        self.check_resp(resp.status, 302)
+        self.check_error(resp.status, 302)
 
 
         stack_cookies = SimpleCookie()
@@ -197,7 +197,7 @@ class Login:
 
 
         resp = await self.session.get('https://backpack.tf')
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
         resp = re.sub(r'[\t\n]', '', resp).replace('    ', '')
 
@@ -217,7 +217,7 @@ class Login:
         await self.backpack_login()
 
         if not (self.steam_logged_in and self.bptf_logged_in):
-            check_resp(err_messsage='There was an error while logging in.')
+            check_error(err_messsage='There was an error while logging in.')
 
         self.logged_in = time.time()
         print('Successfully logged in.')
@@ -229,7 +229,7 @@ class Login:
 
         cookies = self.jar_to_dict(self.session.cookie_jar)
         resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': cookies['sessionid']})
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
 
         self.steam_logged_in = 0
         print('Successfully logged out from steam.')
@@ -241,7 +241,7 @@ class Login:
 
         cookies = self.jar_to_dict(self.session.cookie_jar)
         resp = await self.session.get(f"https://backpack.tf/logout?user-id={cookies['user-id']}")
-        self.check_resp(resp.status)
+        self.check_error(resp.status)
 
         self.bptf_logged_in = 0
         print('Successfully logged out from backpack.tf.')
@@ -254,7 +254,7 @@ class Login:
         await self.backpack_logout()
         
         if self.steam_logged_in or self.bptf_logged_in:
-            self.check_resp(err_messsage='There was an error while logging out.')
+            self.check_error(err_messsage='There was an error while logging out.')
 
         await asyncio.sleep(0.1)
         await self.session.close()
