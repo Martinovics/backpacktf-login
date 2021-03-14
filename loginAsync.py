@@ -36,7 +36,7 @@ class Login:
     @classmethod
     def elapsed_time(self, seconds: [int, float]) -> str:
         seconds = int(seconds)
-        
+
         hour = seconds // 3600
         minute = (seconds - hour * 3600) // 60
         second = seconds - hour * 3600 - minute * 60
@@ -48,7 +48,7 @@ class Login:
 
     @classmethod
     def encode_password(self, password, rsa_modulus, rsa_exponent) -> str:
-        return  base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
+        return base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
 
 
 
@@ -85,7 +85,7 @@ class Login:
 
     @classmethod
     def check_error(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
-        
+
         if err_messsage:
             raise Exception(err_messsage)
         if status != expected_status or err_messsage:
@@ -97,16 +97,31 @@ class Login:
     def get_session(self) -> aiohttp.ClientSession:
         return self.session
 
-    
+
     def is_logged_in(self) -> bool:
         return bool(self.logged_in)
 
-    
+
     def is_bptf_logged_in(self) -> bool:
         return bool(self.bptf_logged_in)
 
 
-    def is_steam_logged_in(self) -> bool:
+    async def is_steam_logged_in(self, send_request: bool = False) -> bool:
+
+        if send_request:
+
+            resp = await self.session.get('https://steamcommunity.com')
+            self.check_error(resp.status)
+            resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
+
+            try:
+                regex = r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>'
+                steamID64, _, username = re.findall(regex, resp)[0]
+            except (ValueError, IndexError):
+                raise Exception('some exception')
+
+
+
         return bool(self.steam_logged_in)
 
 
@@ -176,7 +191,7 @@ class Login:
 
         resp = await self.session.post('https://backpack.tf/login')
         self.check_error(resp.status)
-    
+
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
         payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
 
@@ -192,11 +207,11 @@ class Login:
         for cookie in resp.headers.getall('Set-Cookie'):
             if 'Max-Age=0;' not in cookie:  # 2 empty, 2 valuable cookie pairs
                 stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))  # there's a problem with the [] in the cookie keys
-        
+
         self.session.cookie_jar.update_cookies(stack_cookies)
 
 
-        # check whether we are really logged in 
+        # check whether we are really logged in
         resp = await self.session.get('https://backpack.tf')
         self.check_error(resp.status)
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
@@ -206,7 +221,7 @@ class Login:
             steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
         except (ValueError, IndexError):
             raise Exception('some exception')
-        
+
         self.bptf_logged_in = time.time()
         print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
 
@@ -218,7 +233,7 @@ class Login:
         await self.backpack_login()
 
         if not (self.steam_logged_in and self.bptf_logged_in):
-            check_error(err_messsage='There was an error while logging in.')
+            self.check_error(err_messsage='There was an error while logging in.')
 
         self.logged_in = time.time()
         print('Successfully logged in.')
@@ -253,13 +268,13 @@ class Login:
     async def logout(self) -> None:
         await self.steam_logout()
         await self.backpack_logout()
-        
+
         if self.steam_logged_in or self.bptf_logged_in:
             self.check_error(err_messsage='There was an error while logging out.')
 
         await asyncio.sleep(0.1)
         await self.session.close()
-        
+
         print(f'Successfully logged out. Session lasted for {self.elapsed_time(time.time()-self.logged_in)}.')
         self.logged_in = 0
 
