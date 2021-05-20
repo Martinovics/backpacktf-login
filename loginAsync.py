@@ -15,7 +15,8 @@ try:
     from tools.config import Const as const
     from tools.config import Config as cfg
 except ImportError:
-    raise Exception("Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'.")
+    ex = "Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'."
+    raise Exception(ex)
 
 
 
@@ -48,7 +49,9 @@ class Login:
 
     @classmethod
     def encode_password(self, password, rsa_modulus, rsa_exponent) -> str:
-        return base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
+        password = password.encode('UTF-8')
+        public_key = rsa.PublicKey(rsa_modulus, rsa_exponent)
+        return base64.b64encode(rsa.encrypt(password, public_key)).decode("utf-8")
 
 
 
@@ -60,10 +63,13 @@ class Login:
             key=base64.b64decode(shared_secret),
             msg=(int(time.time()) // 30).to_bytes(8, byteorder='big'),
             digest=hashlib.sha1
-            )
+        )
 
         b = hash_[19] & 0xF
-        code_point = (hash_[b] & 0x7F) << 24 | (hash_[b + 1] & 0xFF) << 16 | (hash_[b + 2] & 0xFF) << 8 | (hash_[b + 3] & 0xFF)
+        code_point = (hash_[b] & 0x7F) << 24 | \
+                     (hash_[b + 1] & 0xFF) << 16 | \
+                     (hash_[b + 2] & 0xFF) << 8 | \
+                     (hash_[b + 3] & 0xFF)
 
         code = ''
         char_set = '23456789BCDFGHJKMNPQRTVWXY'
@@ -106,22 +112,7 @@ class Login:
         return bool(self.bptf_logged_in)
 
 
-    async def is_steam_logged_in(self, send_request: bool = False) -> bool:
-
-        if send_request:
-
-            resp = await self.session.get('https://steamcommunity.com')
-            self.check_error(resp.status)
-            resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
-
-            try:
-                regex = r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>'
-                steamID64, _, username = re.findall(regex, resp)[0]
-            except (ValueError, IndexError):
-                raise Exception('some exception')
-
-
-
+    def is_steam_logged_in(self) -> bool:
         return bool(self.steam_logged_in)
 
 
@@ -139,7 +130,7 @@ class Login:
             password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
-            )
+        )
 
         payload = {
             'username': cfg.USERNAME,
@@ -153,7 +144,7 @@ class Login:
             'remember_login': 'false',
             'rsatimestamp': ourRsa['timestamp'],
             'donotcache': str(int(time.time() * 1000))
-            }
+        }
 
 
         resp = await self.session.post("https://store.steampowered.com/login/dologin", data=payload)
@@ -177,7 +168,8 @@ class Login:
         resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
         try:
-            steamID64, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>', resp)[0]
+            regex = r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>'
+            steamID64, _, username = re.findall(regex, resp)[0]
         except (ValueError, IndexError):
             raise Exception('some exception')
 
@@ -193,20 +185,23 @@ class Login:
         self.check_error(resp.status)
 
         soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
-        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
+
+        inputs = soup.find("form", id="openidForm").find_all('input')
+        payload = {field['name']: field['value'] for field in inputs if 'name' in field.attrs}
 
         resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload, allow_redirects=False)
         self.check_error(resp.status, 302)
         resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 1
         self.check_error(resp.status, 301)
-        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 2 --x--> redirect 3 (https://backpack.tf)
+        resp = await self.session.get(resp.headers['Location'], allow_redirects=False)  # redirect 2 --x--> redirect 3
         self.check_error(resp.status, 302)
 
 
         stack_cookies = SimpleCookie()
         for cookie in resp.headers.getall('Set-Cookie'):
             if 'Max-Age=0;' not in cookie:  # 2 empty, 2 valuable cookie pairs
-                stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))  # there's a problem with the [] in the cookie keys
+                # there's a problem with the [] in the cookie keys
+                stack_cookies.load(cookie.replace('[', '%5B').replace(']', '%5D'))
 
         self.session.cookie_jar.update_cookies(stack_cookies)
 
@@ -244,7 +239,8 @@ class Login:
     async def steam_logout(self) -> None:
 
         cookies = self.jar_to_dict(self.session.cookie_jar)
-        resp = await self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': cookies['sessionid']})
+        resp = await self.session.post(url='https://steamcommunity.com/login/logout/',
+                                       data={'sessionid': cookies['sessionid']})
         self.check_error(resp.status)
 
         self.steam_logged_in = 0
