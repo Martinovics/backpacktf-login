@@ -9,10 +9,11 @@ import base64
 import hashlib
 
 try:
-    from tools.config import Const as const
+    # from tools.config import Const as const
     from tools.config import Config as cfg
 except ImportError:
-    raise Exception("Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'.")
+    ex = "Please, fill out the 'config_temp.py' file with the needed information, then rename it to just 'config.py'."
+    raise Exception(ex)
 
 
 
@@ -26,6 +27,7 @@ class Login:
         self.logged_in = 0        # --> epoch
         self.bptf_logged_in = 0   # --> epoch
         self.steam_logged_in = 0  # --> epoch
+        self.bptf_logout_url = 'https://backpack.tf/logout'  # not complete yet
 
 
 
@@ -33,7 +35,7 @@ class Login:
     @classmethod
     def elapsed_time(self, seconds: [int, float]) -> str:
         seconds = int(seconds)
-        
+
         hour = seconds // 3600
         minute = (seconds - hour * 3600) // 60
         second = seconds - hour * 3600 - minute * 60
@@ -45,7 +47,9 @@ class Login:
 
     @classmethod
     def encode_password(self, password, rsa_modulus, rsa_exponent) -> str:
-        return  base64.b64encode(rsa.encrypt(password.encode('UTF-8'), rsa.PublicKey(rsa_modulus, rsa_exponent))).decode("utf-8")
+        password = password.encode('UTF-8')
+        public_key = rsa.PublicKey(rsa_modulus, rsa_exponent)
+        return base64.b64encode(rsa.encrypt(password, public_key)).decode("utf-8")
 
 
 
@@ -57,10 +61,13 @@ class Login:
             key=base64.b64decode(shared_secret),
             msg=(int(time.time()) // 30).to_bytes(8, byteorder='big'),
             digest=hashlib.sha1
-            )
+        )
 
         b = hash_[19] & 0xF
-        code_point = (hash_[b] & 0x7F) << 24 | (hash_[b + 1] & 0xFF) << 16 | (hash_[b + 2] & 0xFF) << 8 | (hash_[b + 3] & 0xFF)
+        code_point = (hash_[b] & 0x7F) << 24 | \
+                     (hash_[b + 1] & 0xFF) << 16 | \
+                     (hash_[b + 2] & 0xFF) << 8 | \
+                     (hash_[b + 3] & 0xFF)
 
         code = ''
         char_set = '23456789BCDFGHJKMNPQRTVWXY'
@@ -75,7 +82,7 @@ class Login:
 
     @classmethod
     def check_error(self, status: int = 200, expected_status: int = 200, err_messsage: str = '') -> None:
-        
+
         if err_messsage:
             raise Exception(err_messsage)
         if status != expected_status or err_messsage:
@@ -87,11 +94,11 @@ class Login:
     def get_session(self) -> requests.Session:
         return self.session
 
-    
+
     def is_logged_in(self) -> bool:
         return bool(self.logged_in)
 
-    
+
     def is_bptf_logged_in(self) -> bool:
         return bool(self.bptf_logged_in)
 
@@ -114,7 +121,7 @@ class Login:
             password=cfg.PASSWORD,
             rsa_modulus=int(ourRsa['publickey_mod'], 16),
             rsa_exponent=int(ourRsa['publickey_exp'], 16)
-            )
+        )
 
         payload = {
             'username': cfg.USERNAME,
@@ -128,7 +135,7 @@ class Login:
             'remember_login': 'false',
             'rsatimestamp': ourRsa['timestamp'],
             'donotcache': str(int(time.time() * 1000))
-            }
+        }
 
 
         resp = self.session.post("https://store.steampowered.com/login/dologin", data=payload)
@@ -142,7 +149,8 @@ class Login:
         '''
         cookies = self.session.cookies.get_dict()
         self.session.cookies.set(**{"name": "sessionid", "value": cookies['sessionid'], "domain": 'steamcommunity.com'})
-        self.session.cookies.set(**{"name": "sessionid", "value": cookies['sessionid'], "domain": 'store.steampowered.com'})
+        self.session.cookies.set(**{"name": "sessionid", "value": cookies['sessionid'],
+                                 "domain": 'store.steampowered.com'})
         '''
 
 
@@ -152,7 +160,8 @@ class Login:
         resp = resp.text
 
         try:
-            steamID64, _, username = re.findall(r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>', resp)[0]
+            regex = r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>'
+            steamID64, _, username = re.findall(regex, resp)[0]
         except (ValueError, IndexError):
             raise Exception('some exception')
 
@@ -166,24 +175,28 @@ class Login:
 
         resp = self.session.post('https://backpack.tf/login')
         self.check_error(resp.status_code)
-    
+
         soup = BeautifulSoup(resp.text, "lxml")
-        payload = {field['name']: field['value'] for field in soup.find("form", id="openidForm").find_all('input') if 'name' in field.attrs}
+        inputs = soup.find("form", id="openidForm").find_all('input')
+        payload = {field['name']: field['value'] for field in inputs if 'name' in field.attrs}
 
         resp = self.session.post(resp.url, data=payload)
         self.check_error(resp.status_code)
 
 
-        # check whether we are really logged in 
-        resp = self.session.get('https://backpack.tf')  # actually this was the final destination of the prev request 
+        # check whether we are really logged in
+        resp = self.session.get('https://backpack.tf')  # actually this was the final destination of the prev request
         self.check_error(resp.status_code)
         resp = re.sub(r'[\t\n]', '', resp.text).replace('    ', '')
 
         try:
             steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
+
+            user_id = re.findall(r"<a href='/logout\?user-id=(.*?)'>", resp)[0]
+            self.bptf_logout_url = f"https://backpack.tf/logout?user-id={user_id}"
         except (ValueError, IndexError):
             raise Exception('some exception')
-        
+
         self.bptf_logged_in = time.time()
         print(f'Successfully logged in to backpack.tf as {username} ({steamID64}).')
 
@@ -195,7 +208,7 @@ class Login:
         self.backpack_login()
 
         if not (self.steam_logged_in and self.bptf_logged_in):
-            check_error(err_messsage='There was an error while logging in.')
+            self.check_error(err_messsage='There was an error while logging in.')
 
         self.logged_in = time.time()
         print('Successfully logged in.')
@@ -205,7 +218,8 @@ class Login:
 
     def steam_logout(self) -> None:
 
-        resp = self.session.post('https://steamcommunity.com/login/logout/', data={'sessionid': self.session.cookies.get_dict()['sessionid']})
+        resp = self.session.post(url='https://steamcommunity.com/login/logout/',
+                                 data={'sessionid': self.session.cookies.get_dict()['sessionid']})
         self.check_error(resp.status_code)
 
         self.steam_logged_in = 0
@@ -215,8 +229,8 @@ class Login:
 
 
     def backpack_logout(self) -> None:
-        
-        resp = self.session.get(f"https://backpack.tf/logout?user-id={self.session.cookies.get_dict()['user-id']}")
+
+        resp = self.session.get(self.bptf_logout_url)
         self.check_error(resp.status_code)
 
         self.bptf_logged_in = 0
@@ -228,13 +242,13 @@ class Login:
     def logout(self) -> None:
         self.steam_logout()
         self.backpack_logout()
-        
+
         if self.steam_logged_in or self.bptf_logged_in:
             self.check_error(err_messsage='There was an error while logging out.')
 
         time.sleep(0.1)
         self.session.close()
-        
+
         print(f'Successfully logged out. Session lasted for {self.elapsed_time(time.time()-self.logged_in)}.')
         self.logged_in = 0
 

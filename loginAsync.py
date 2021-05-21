@@ -30,6 +30,8 @@ class Login:
         self.logged_in = 0        # --> epoch
         self.bptf_logged_in = 0   # --> epoch
         self.steam_logged_in = 0  # --> epoch
+        self.bptf_logout_url = 'https://backpack.tf/logout'  # not complete yet
+
 
 
 
@@ -214,6 +216,9 @@ class Login:
 
         try:
             steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
+
+            user_id = re.findall(r"<a href='/logout\?user-id=(.*?)'>", resp)[0]
+            self.bptf_logout_url = f"https://backpack.tf/logout?user-id={user_id}"
         except (ValueError, IndexError):
             raise Exception('some exception')
 
@@ -250,9 +255,7 @@ class Login:
 
 
     async def backpack_logout(self) -> None:
-
-        cookies = self.jar_to_dict(self.session.cookie_jar)
-        resp = await self.session.get(f"https://backpack.tf/logout?user-id={cookies['user-id']}")
+        resp = await self.session.get(self.bptf_logout_url)
         self.check_error(resp.status)
 
         self.bptf_logged_in = 0
