@@ -228,9 +228,32 @@ class Login:
 
 
 
+    async def marketplace_login(self) -> None:
+        resp = await self.session.get('https://marketplace.tf/login')
+        self.check_error(resp.status)
+
+        soup = BeautifulSoup((await resp.read()).decode(encoding='utf-8', errors='ignore'), "lxml")
+
+        inputs = soup.find("form", id="openidForm").find_all('input')
+        payload = {field['name']: field['value'] for field in inputs if 'name' in field.attrs}
+
+        resp = await self.session.post('https://steamcommunity.com/openid/login', data=payload)
+        self.check_error(resp.status)
+
+
+
+
+    async def marketplace_logout(self) -> None:
+        resp = await self.session.get('https://marketplace.tf/?logout=1')
+        self.check_error(resp.status)
+
+
+
+
     async def login(self) -> None:
         await self.steam_login()
         await self.backpack_login()
+        await self.marketplace_login()
 
         if not (self.steam_logged_in and self.bptf_logged_in):
             self.check_error(err_messsage='There was an error while logging in.')
@@ -267,6 +290,7 @@ class Login:
     async def logout(self) -> None:
         await self.steam_logout()
         await self.backpack_logout()
+        await self.marketplace_logout()
 
         if self.steam_logged_in or self.bptf_logged_in:
             self.check_error(err_messsage='There was an error while logging out.')
