@@ -4,7 +4,6 @@ import aiohttp
 import asyncio
 from yarl import URL
 from bs4 import BeautifulSoup
-from typing import Union
 from http.cookies import SimpleCookie
 
 import rsa
@@ -212,31 +211,59 @@ class Login:
         self.session.cookie_jar.update_cookies(cookies, URL(Login.COMMUNITY_URL))
 
 
+        if (await self.is_steam_logged_in(check_with_request=True)):
+            self.steam_logged_in = True
+            print('Logged in to steam.')
+        else:
+            self.steam_logged_in = False
+            print('Could not log in to steam.')
+
+
 
 
     async def steam_logout(self) -> None:
 
-        cookies = self.jar_to_dict(self.session.cookie_jar)
-        await self._send_request(method='post', url='https://steamcommunity.com/login/logout/',
-                                 data={'sessionid': cookies['sessionid']})
+        resp = await self._send_request(
+            method='post',
+            url='https://steamcommunity.com/login/logout/',
+            data={'sessionid': self.jar_to_dict(self.session.cookie_jar)['sessionid']}
+        )
+
+        resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
+        print(resp)
+        print('\n' * 10)
+
+        # https://store.steampowered.com/
+        resp = await self._send_request(method='get', url='https://store.steampowered.com/',)
+        resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
+        print(resp)
+
+        # await self._send_request(method='post', url='https://store.steampowered.com/login/logout/')
+        # await self._send_request(method='post', url='https://help.steampowered.com/login/logout/')
+
+
+
+        if not (await self.is_steam_logged_in(check_with_request=True)):
+            self.steam_logged_in = False
+            print('Logged out from steam.')
+        else:
+            self.steam_logged_in = True
+            print('Could not log out from steam.')
 
 
 
 
-    async def is_steam_logged_in(self, check_with_request: bool = False) -> Union[tuple, bool]:
+    async def is_steam_logged_in(self, check_with_request: bool = False) -> bool:
 
         if check_with_request:
 
             resp = await self._send_request('get', 'https://steamcommunity.com')
             resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
-            try:
-                regex = r'<a href="https://steamcommunity.com/profiles/(.*?)/" data-miniprofile="(.*?)">(.*?)</a>'
-                steamID64, _, username = re.findall(regex, resp)[0]
-            except (ValueError, IndexError):
+            if 'data-miniprofile' in resp:
+                return True
+            else:
                 return False
-
-            return username, steamID64
 
         return self.steam_logged_in
 
@@ -279,28 +306,41 @@ class Login:
             pass
 
 
+        if (await self.is_backpack_logged_in(check_with_request=True)):
+            self.backpack_logged_in = True
+            print('Logged in to backpack.tf.')
+        else:
+            self.backpack_logged_in = False
+            print('Could not log in to backpack.tf.')
+
+
 
 
     async def backpack_logout(self) -> None:
         await self._send_request(method='get', url=self.backpack_logout_url)
 
 
+        if not (await self.is_backpack_logged_in(check_with_request=True)):
+            self.backpack_logged_in = False
+            print('Logged out from backpack.tf.')
+        else:
+            self.backpack_logged_in = True
+            print('Could not log out from backpack.tf.')
 
 
-    async def is_backpack_logged_in(self, check_with_request: bool = False) -> Union[tuple, bool]:
+
+
+    async def is_backpack_logged_in(self, check_with_request: bool = False) -> bool:
 
         if check_with_request:
 
             resp = await self._send_request('get', 'https://backpack.tf')
             resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
-            resp = re.sub(r'[\t\n]', '', resp).replace('    ', '')
 
-            try:
-                steamID64, username = re.findall(r'<a href="/profiles/(.*?)">(.*?)</a>', resp)[0]
-            except (ValueError, IndexError):
+            if '<div class="username">' in resp:
+                return True
+            else:
                 return False
-
-            return username, steamID64
 
         return self.backpack_logged_in
 
@@ -318,27 +358,40 @@ class Login:
         await self._send_request(method='post', url='https://steamcommunity.com/openid/login', data=payload)
 
 
+        if (await self.is_marketplace_logged_in(check_with_request=True)):
+            self.marketplace_logged_in = True
+            print('Logged in to marketplace.tf.')
+        else:
+            self.marketplace_logged_in = False
+            print('Could not log in to marketplace.tf.')
+
+
 
 
     async def marketplace_logout(self) -> None:
         await self._send_request(method='get', url='https://marketplace.tf/?logout=1')
 
 
+        if not (await self.is_marketplace_logged_in(check_with_request=True)):
+            self.marketplace_logged_in = False
+            print('Logged out from marketplace.tf.')
+        else:
+            self.marketplace_logged_in = True
+            print('Could not log out from marketplace.tf.')
 
 
-    async def is_marketplace_logged_in(self, check_with_request: bool = False) -> Union[tuple, bool]:
+
+
+    async def is_marketplace_logged_in(self, check_with_request: bool = False) -> bool:
         if check_with_request:
 
             resp = await self._send_request('get', 'https://marketplace.tf/dashboard?override=true')
             resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
 
-            try:
-                username = re.findall(r'<div class="shop-userinfo-username">(.*?)</div>', resp)[0]
-                steamID64 = re.findall(r"SteamID: '(.*?)'", resp)[0]
-            except (ValueError, IndexError):
+            if 'LoggedIn: true,' in resp:
+                return True
+            else:
                 return False
-
-            return username, steamID64
 
         return self.marketplace_logged_in
 
@@ -346,80 +399,19 @@ class Login:
 
 
     async def login(self) -> None:
-
-
         await self.steam_login()
-
-        try:
-            username, steamID64 = await self.is_steam_logged_in(check_with_request=True)
-            self.steam_logged_in = True
-            print(f'Logged in to steam as {username} ({steamID64})')
-        except (ValueError, TypeError):
-            self.steam_logged_in = False
-            print('Could not log in to steam.')
-
-
         await self.backpack_login()
-
-        try:
-            username, steamID64 = await self.is_backpack_logged_in(check_with_request=True)
-            self.backpack_logged_in = True
-            print(f'Logged in to backpack.tf as {username} ({steamID64}).')
-        except (ValueError, TypeError):
-            self.backpack_logged_in = False
-            print('Could not log in to backpack.tf.')
-
-
         await self.marketplace_login()
-
-        try:
-            username, steamID64 = await self.is_marketplace_logged_in(check_with_request=True)
-            self.marketplace_logged_in = True
-            print(f'Logged in to marketplace.tf as {username} ({steamID64}).')
-        except (ValueError, TypeError):
-            self.marketplace_logged_in = False
-            print('Could not log in to marketplace.tf.')
 
 
 
 
     async def logout(self) -> None:
-
-
         await self.marketplace_logout()
-
-        try:
-            username, steamID64 = await self.is_marketplace_logged_in(check_with_request=True)
-            self.marketplace_logged_in = True
-            print('Could not logout from marketplace.tf.')
-        except (ValueError, TypeError):
-            self.marketplace_logged_in = False
-            print('Logged out from marketplace.tf.')
-
-
         await self.backpack_logout()
-
-        try:
-            username, steamID64 = await self.is_backpack_logged_in(check_with_request=True)
-            self.backpack_logged_in = True
-            print('Could not logout from backpack.tf.')
-        except (ValueError, TypeError):
-            self.backpack_logged_in = False
-            print('Logged out from backpack.tf.')
-
-
         await self.steam_logout()
 
-        try:
-            username, steamID64 = await self.is_steam_logged_in(check_with_request=True)
-            self.steam_logged_in = True
-            print('Could not logout from steam.')
-        except (ValueError, TypeError):
-            self.steam_logged_in = False
-            print('Logged out from steam.')
-
-
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         await self.session.close()
 
 
