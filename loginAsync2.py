@@ -1,7 +1,9 @@
 import re
 import time
+# import json
 import aiohttp
 import asyncio
+# import aiofiles
 from yarl import URL
 from bs4 import BeautifulSoup
 from http.cookies import SimpleCookie
@@ -39,7 +41,8 @@ class Login:
         self.marketplace_logged_in = False
         self.retries = 0
 
-        self.backpack_logout_url = 'https://backpack.tf/logout'  # not complete yet
+        self.steam_logout_auth = ''
+        self.backpack_logout_url = ''
 
 
 
@@ -200,6 +203,8 @@ class Login:
         resp = await self._send_request(method='post', url='https://store.steampowered.com/login/dologin', data=payload)
         resp = await resp.json()
 
+        self.steam_logout_auth = resp['transfer_parameters']['auth']
+
         for url in resp['transfer_urls']:
             await self._send_request(method='post', url=url, data=resp['transfer_parameters'])
 
@@ -221,26 +226,18 @@ class Login:
 
 
 
-    async def steam_logout(self) -> None:
+    async def steam_logout(self) -> None:  # does not work
 
-        resp = await self._send_request(
+        '''
+        self._send_request(
             method='post',
             url='https://steamcommunity.com/login/logout/',
             data={'sessionid': self.jar_to_dict(self.session.cookie_jar)['sessionid']}
         )
 
-        resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
-        print(resp)
-        print('\n' * 10)
-
-        # https://store.steampowered.com/
-        resp = await self._send_request(method='get', url='https://store.steampowered.com/',)
-        resp = (await resp.read()).decode(encoding='utf-8', errors='ignore')
-        print(resp)
-
-        # await self._send_request(method='post', url='https://store.steampowered.com/login/logout/')
-        # await self._send_request(method='post', url='https://help.steampowered.com/login/logout/')
-
+        payload = {'in_transfer': 1, 'auth': self.steam_logout_auth}
+        await self._send_request(method='post', url='https://store.steampowered.com/login/logout/', data=payload)
+        await self._send_request(method='post', url='https://help.steampowered.com/login/logout/', data=payload)
 
 
         if not (await self.is_steam_logged_in(check_with_request=True)):
@@ -249,6 +246,12 @@ class Login:
         else:
             self.steam_logged_in = True
             print('Could not log out from steam.')
+        '''
+
+
+        self.steam_logged_in = False
+        print('Logged out from steam.')
+
 
 
 
