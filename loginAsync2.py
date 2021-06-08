@@ -409,6 +409,20 @@ class Login:
 
 
 
+    async def relogin(self) -> None:
+        await self.marketplace_logout()
+        await self.backpack_logout()
+        await self.steam_logout()
+
+        await asyncio.sleep(3)
+
+        await self.steam_login()
+        await self.backpack_login()
+        await self.marketplace_login()
+
+
+
+
     async def logout(self) -> None:
         await self.marketplace_logout()
         await self.backpack_logout()
@@ -433,7 +447,10 @@ async def main():
             shared_secret=cfg.SHARED_SECRET
         )
 
+
         await loginSession.login()
+        await asyncio.sleep(5)
+        await loginSession.relogin()
         await asyncio.sleep(5)
         await loginSession.logout()
 
